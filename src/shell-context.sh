@@ -1,19 +1,20 @@
-# File: shell-context.bash
+# File: shell-context.sh
 
 # This script is intended to be located in your ~/.local/lib/
-# directory and sourced from near the start of your ~/.bashrc or
-# ~/.bash_profile. It provides the in-context function for managing
-# your working context with the Shell Context project.
+# directory and sourced from your shell startup file (for example
+# ~/.bashrc, ~/.bash_profile, or ~/.zshrc). It provides the
+# in-context function for managing your working context with the
+# Shell Context project.
 #
-# Each context runs in a separate bash session with environment
+# Each context runs in a separate shell session with environment
 # variables set according to the particular context. The INCONTEXT
 # environment variable is set to the name of the current context, and
 # other environment variables can be set as needed by the context.
 #
 # For each context, there should be a <context-name>.context-start
 # file in the ~/.config/in-context/contexts/ directory, which is
-# sourced near the beginning of the .bashrc or .bash_profile of the
-# context's bash session. This file should set any environment
+# sourced near the beginning of the startup file of the context's
+# bash or zsh session. This file should set any environment
 # variables needed for the context, and optionally set
 # INCONTEXT_TITLE to a string to be used instead of the context name
 # as the title of the context in the prompt.
@@ -21,9 +22,9 @@
 # Each context may also optionally have a
 # <context-name>.context-finalize file in the
 # ~/.config/in-context/contexts/ directory, which is sourced near the
-# end of the .bashrc or .bash_profile of the context's bash session.
+# end of the startup file of the context's bash or zsh session.
 # This should perform any actions that require access to executables
-# and functions defined in the .bashrc or .bash_profile, such as pyenv
+# and functions defined in the startup file, such as pyenv
 # or nvm initialization.
 #
 # Each context may also optionally have a
@@ -67,13 +68,38 @@ if [[ ! -d "$HOME/.config/in-context/contexts" ]]; then
   mkdir -p "$HOME/.config/in-context/contexts"
 fi
 
+function _incontext-current-shell() {
+  if [[ -n ${BASH_VERSION-} ]]; then
+    printf '%s\n' "bash"
+  elif [[ -n ${ZSH_VERSION-} ]]; then
+    printf '%s\n' "zsh"
+  else
+    echo "Shell Context only supports being sourced from bash or zsh." >&2
+    return 1
+  fi
+}
+
+function _incontext-confirm() {
+  local prompt=$1 reply
+  printf '%s' "$prompt" >&2
+  if ! IFS= read -r reply; then
+    return 1
+  fi
+
+  case $reply in
+    [Yy]*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 function _incontext-init-usage() {
   cat <<EOF
 Usage: in-context init-start
 Usage: in-context init-start -h
 
 Initialize the Shell Context system. This should be called near the
-start of your .bashrc or .bash_profile.
+start of your shell startup file (for example ~/.bashrc,
+~/.bash_profile, or ~/.zshrc).
 
 Options:
   -h  Show this usage output and return.
@@ -118,7 +144,8 @@ Usage: in-context init-finalize
 Usage: in-context init-finalize -h
 
 Finalize the initialization of the Shell Context system. This should be
-called near the end of your .bashrc or .bash_profile.
+called near the end of your shell startup file (for example ~/.bashrc,
+~/.bash_profile, or ~/.zshrc).
 
 Options:
   -h  Show this usage output and return.
@@ -147,7 +174,7 @@ Usage: in-context prompt-title [format] [default_value]
 Usage: in-context prompt-title -h
 
 Output the context title for use in the prompt. This should be called
-from the PS1 variable assignment in your .bashrc or .bash_profile.
+from the PS1/PROMPT assignment in your shell startup file.
 
 If INCONTEXT_TITLE is not set, and no default_value is provided, then
 no output will be produced, so the prompt will not be modified.
@@ -179,8 +206,9 @@ function _use-incontext-usage() {
 Usage: in-context use <context_name>
 Usage: in-context use -h
 
-Use the context with the given name. This will open a new bash session
-with the environment variables set according to the context.
+Use the context with the given name. This will open a new bash or zsh
+session matching the current shell, with the environment variables set
+according to the context.
 
 Limitations:
   - Does not unload the current context before switching to the new
@@ -227,13 +255,16 @@ function _incontext-use() {
     context_finalize_file=
   fi
 
+  local current_shell
+  current_shell=$(_incontext-current-shell) || return 1
+
   echo "Entering context '$context_name'..."
   if [[ -n "$INCONTEXT" ]]; then
     INCONTEXT="$context_name" INCONTEXT_START_FILE="$context_start_file" INCONTEXT_FINALIZE_FILE="$context_finalize_file" \
-      exec bash
+      exec "$current_shell"
   else
     INCONTEXT="$context_name" INCONTEXT_START_FILE="$context_start_file" INCONTEXT_FINALIZE_FILE="$context_finalize_file" \
-      bash
+      "$current_shell"
   fi
 }
 
@@ -242,7 +273,7 @@ function _unload-incontext-usage() {
 Usage: in-context unload [-qy]
 Usage: in-context unload -h
 
-Unload the current context (if any) by exiting the current bash
+Unload the current context (if any) by exiting the current shell
 session. If INCONTEXT is not set, then this will do nothing.
 
 Options:
@@ -258,7 +289,6 @@ function _incontext-unload() {
   local OPTIND=1 opt OPTARG
   local prompt_for_conf=1
   local be_less_verbose
-  local reply
   while getopts ":qyh" opt; do
     case $opt in
       q) be_less_verbose=1 ;;
@@ -274,9 +304,7 @@ function _incontext-unload() {
   fi
 
   if [[ $prompt_for_conf == 1 ]]; then
-    read -p "Unload current context '$INCONTEXT'? [Y/n] " -n 1 -r reply
-    echo
-    if [[ ! $reply =~ ^[Yy]$ ]]; then
+    if ! _incontext-confirm "Unload current context '$INCONTEXT'? [Y/n] "; then
       echo "Aborting context unload." >&2
       return 1
     fi
@@ -314,7 +342,6 @@ function _incontext-use-local() {
   local prompt_for_conf=1
   local use_physical_path
   local be_less_verbose
-  local reply
   while getopts ":ypqh" opt; do
     case $opt in
       y) prompt_for_conf= ;;
@@ -358,9 +385,7 @@ function _incontext-use-local() {
   else
     if [[ -n "$INCONTEXT" ]]; then
       if [[ $prompt_for_conf == 1 ]]; then
-        read -p "No .incontext file found. Unload current context '$INCONTEXT'? [Y/n] " -n 1 -r reply
-        echo
-        if [[ ! $reply =~ ^[Yy]$ ]]; then
+        if ! _incontext-confirm "No .incontext file found. Unload current context '$INCONTEXT'? [Y/n] "; then
           echo "Aborting context unload." >&2
           return 1
         fi
@@ -381,19 +406,23 @@ Usage: in-context <subcommand> [arguments]
 Usage: in-context -h
 
 This script is intended to be located in your ~/.local/lib/
-directory and sourced from near the start of your ~/.bashrc or
-~/.bash_profile. It provides the in-context function for managing
-your working context with the Shell Context project.
+directory and sourced from your shell startup file (for example
+~/.bashrc, ~/.bash_profile, or ~/.zshrc). It provides the
+in-context function for managing your working context with the
+Shell Context project.
 
-Each context runs in a separate bash session with environment
+Each context runs in a separate bash or zsh session with environment
 variables set according to the particular context. The INCONTEXT
 environment variable is set to the name of the current context, and
 other environment variables can be set as needed by the context.
 
+Call "in-context init-start" near the start of that startup file and
+"in-context init-finalize" near the end.
+
 For each context, there should be a <context-name>.context-start
 file in the ~/.config/in-context/contexts/ directory, which is
-sourced near the beginning of the .bashrc or .bash_profile of the
-context's bash session. This file should set any environment
+sourced near the beginning of the startup file of the context's
+bash or zsh session. This file should set any environment
 variables needed for the context, and optionally set
 INCONTEXT_TITLE to a string to be used instead of the context name
 as the title of the context in the prompt.
@@ -401,9 +430,9 @@ as the title of the context in the prompt.
 Each context may also optionally have a
 <context-name>.context-finalize file in the
 ~/.config/in-context/contexts/ directory, which is sourced near the
-end of the .bashrc or .bash_profile of the context's bash session.
-This should perform any actions that require access to executables
-and functions defined in the .bashrc or .bash_profile, such as pyenv
+end of the startup file of the context's bash or zsh session. This
+should perform any actions that require access to executables
+and functions defined in the startup file, such as pyenv
 or nvm initialization.
 
 Each context may also optionally have a
