@@ -3,25 +3,25 @@
 # This script is intended to be located in your ~/.local/lib/
 # directory and sourced from your shell startup file (for example
 # ~/.bashrc, ~/.bash_profile, or ~/.zshrc). It provides the
-# in-context function for managing your working context with the
+# shell-context function for managing your working context with the
 # Shell Context project.
 #
 # Each context runs in a separate shell session with environment
-# variables set according to the particular context. The INCONTEXT
+# variables set according to the particular context. The SHELL_CONTEXT
 # environment variable is set to the name of the current context, and
 # other environment variables can be set as needed by the context.
 #
 # For each context, there should be a <context-name>.context-start
-# file in the ~/.config/in-context/contexts/ directory, which is
+# file in the ~/.config/shell-context/contexts/ directory, which is
 # sourced near the beginning of the startup file of the context's
 # bash or zsh session. This file should set any environment
 # variables needed for the context, and optionally set
-# INCONTEXT_TITLE to a string to be used instead of the context name
+# SHELL_CONTEXT_TITLE to a string to be used instead of the context name
 # as the title of the context in the prompt.
 #
 # Each context may also optionally have a
 # <context-name>.context-finalize file in the
-# ~/.config/in-context/contexts/ directory, which is sourced near the
+# ~/.config/shell-context/contexts/ directory, which is sourced near the
 # end of the startup file of the context's bash or zsh session.
 # This should perform any actions that require access to executables
 # and functions defined in the startup file, such as pyenv
@@ -29,46 +29,46 @@
 #
 # Each context may also optionally have a
 # <context-name>.context-cleanup file in the
-# ~/.config/in-context/contexts/ directory, which is sourced before
+# ~/.config/shell-context/contexts/ directory, which is sourced before
 # switching from one context to another.
 #
 # If there is a file named _default.context-start in the
-# ~/.config/in-context/contexts/ directory, then it will be sourced
+# ~/.config/shell-context/contexts/ directory, then it will be sourced
 # when no context is loaded. Similarly, if there is a file named
-# _default.context-finalize in the ~/.config/in-context/contexts/
+# _default.context-finalize in the ~/.config/shell-context/contexts/
 # directory, then it will be sourced when no context is loaded.
 #
 # If there is a file named _default.context-cleanup in the
-# ~/.config/in-context/contexts/ directory, then it will be sourced
+# ~/.config/shell-context/contexts/ directory, then it will be sourced
 # before switching from one context to another. If no cleanup file
 # is applicable, then the cleanup will consist of restoring the PATH
 # environment variable to what it was just before the current
-# context was loaded (from the INCONTEXT_PRE_PATH environment
+# context was loaded (from the SHELL_CONTEXT_PRE_PATH environment
 # variable).
 #
 # If a cleanup file is applicable, and the PATH variable value should
 # be restored, then the cleanup file should use the
-# INCONTEXT_PRE_PATH environment variable to restore the PATH variable
+# SHELL_CONTEXT_PRE_PATH environment variable to restore the PATH variable
 # to what it was before the current context was loaded.
 #
-# A "local" context is defined by the presence of a .incontext file in
+# A "local" context is defined by the presence of a .shell-context file in
 # the current directory or any of its ancestors, which contains the
 # name of a context.
 #
-# If you are using Git, then you should globally ignore .incontext
+# If you are using Git, then you should globally ignore .shell-context
 # files by adding the following line to your ~/.config/git/ignore
 # file:
 #
-#   .incontext
+#   .shell-context
 #
-# Invoke the system through the in-context function and one of its
+# Invoke the system through the shell-context function and one of its
 # subcommands.
 
-if [[ ! -d "$HOME/.config/in-context/contexts" ]]; then
-  mkdir -p "$HOME/.config/in-context/contexts"
+if [[ ! -d "$HOME/.config/shell-context/contexts" ]]; then
+  mkdir -p "$HOME/.config/shell-context/contexts"
 fi
 
-function _incontext-current-shell() {
+function _shell_context_current_shell() {
   if [[ -n ${BASH_VERSION-} ]]; then
     printf '%s\n' "bash"
   elif [[ -n ${ZSH_VERSION-} ]]; then
@@ -79,7 +79,7 @@ function _incontext-current-shell() {
   fi
 }
 
-function _incontext-confirm() {
+function _shell_context_confirm() {
   local prompt=$1 reply
   printf '%s' "$prompt" >&2
   if ! IFS= read -r reply; then
@@ -92,10 +92,10 @@ function _incontext-confirm() {
   esac
 }
 
-function _incontext-init-usage() {
+function _shell_context_init_usage() {
   cat <<EOF
-Usage: in-context init-start
-Usage: in-context init-start -h
+Usage: shell-context init-start
+Usage: shell-context init-start -h
 
 Initialize the Shell Context system. This should be called near the
 start of your shell startup file (for example ~/.bashrc,
@@ -107,41 +107,41 @@ EOF
   :
 }
 
-function _incontext-init-start() {
+function _shell_context_init_start() {
   local OPTIND=1 opt OPTARG
   while getopts ":h" opt; do
     case $opt in
-      h) _incontext-init-usage; return 0 ;;
+      h) _shell_context_init_usage; return 0 ;;
       \?) echo "Invalid option: -$OPTARG" >&2; return 1 ;;
     esac
   done
 
-  if [[ -z $INCONTEXT_PRE_PATH ]]; then
-    export INCONTEXT_PRE_PATH=$PATH
+  if [[ -z $SHELL_CONTEXT_PRE_PATH ]]; then
+    export SHELL_CONTEXT_PRE_PATH=$PATH
   fi
 
-  export INCONTEXT_TITLE=
+  export SHELL_CONTEXT_TITLE=
 
-  if [[ -n "$INCONTEXT" ]]; then
-    export PATH=$INCONTEXT_PRE_PATH
-    . "$INCONTEXT_START_FILE"
-    if [[ -z $INCONTEXT_TITLE ]]; then
-      export INCONTEXT_TITLE="$INCONTEXT"
+  if [[ -n "$SHELL_CONTEXT" ]]; then
+    export PATH=$SHELL_CONTEXT_PRE_PATH
+    . "$SHELL_CONTEXT_START_FILE"
+    if [[ -z $SHELL_CONTEXT_TITLE ]]; then
+      export SHELL_CONTEXT_TITLE="$SHELL_CONTEXT"
     fi
   else
-    export INCONTEXT_START_FILE=
-    export INCONTEXT_FINALIZE_FILE=
-    if [[ -f "$HOME/.config/in-context/contexts/_default.context-start" ]]; then
-      export INCONTEXT_START_FILE="$HOME/.config/in-context/contexts/_default.context-start"
-      . "$INCONTEXT_START_FILE"
+    export SHELL_CONTEXT_START_FILE=
+    export SHELL_CONTEXT_FINALIZE_FILE=
+    if [[ -f "$HOME/.config/shell-context/contexts/_default.context-start" ]]; then
+      export SHELL_CONTEXT_START_FILE="$HOME/.config/shell-context/contexts/_default.context-start"
+      . "$SHELL_CONTEXT_START_FILE"
     fi
   fi
 }
 
-function _incontext-finalize-usage() {
+function _shell_context_finalize_usage() {
   cat <<EOF
-Usage: in-context init-finalize
-Usage: in-context init-finalize -h
+Usage: shell-context init-finalize
+Usage: shell-context init-finalize -h
 
 Finalize the initialization of the Shell Context system. This should be
 called near the end of your shell startup file (for example ~/.bashrc,
@@ -153,37 +153,37 @@ EOF
   :
 }
 
-function _incontext-init-finalize() {
+function _shell_context_init_finalize() {
   local OPTIND=1 opt OPTARG
   while getopts ":h" opt; do
     case $opt in
-      h) _incontext-finalize-usage; return 0 ;;
+      h) _shell_context_finalize_usage; return 0 ;;
       \?) echo "Invalid option: -$OPTARG" >&2; return 1 ;;
     esac
   done
-  if [[ -n "$INCONTEXT" && -f "$INCONTEXT_FINALIZE_FILE" ]]; then
-    . "$INCONTEXT_FINALIZE_FILE"
-  elif [[ -f "$HOME/.config/in-context/contexts/_default.context-finalize" ]]; then
-    . "$HOME/.config/in-context/contexts/_default.context-finalize"
+  if [[ -n "$SHELL_CONTEXT" && -f "$SHELL_CONTEXT_FINALIZE_FILE" ]]; then
+    . "$SHELL_CONTEXT_FINALIZE_FILE"
+  elif [[ -f "$HOME/.config/shell-context/contexts/_default.context-finalize" ]]; then
+    . "$HOME/.config/shell-context/contexts/_default.context-finalize"
   fi
 }
 
-function _incontext-in-prompt-title-usage() {
+function _shell_context_prompt_title_usage() {
   cat <<EOF
-Usage: in-context prompt-title [format] [default_value]
-Usage: in-context prompt-title -h
+Usage: shell-context prompt-title [format] [default_value]
+Usage: shell-context prompt-title -h
 
 Output the context title for use in the prompt. This should be called
 from the PS1/PROMPT assignment in your shell startup file.
 
-If INCONTEXT_TITLE is not set, and no default_value is provided, then
+If SHELL_CONTEXT_TITLE is not set, and no default_value is provided, then
 no output will be produced, so the prompt will not be modified.
 
 Arguments:
   format:
     A printf format string to format the context title (default: '%s').
   default_value:
-    A default value to use in place of INCONTEXT_TITLE if not set.
+    A default value to use in place of SHELL_CONTEXT_TITLE if not set.
 
 Options:
   -h  Show this usage output and return.
@@ -191,20 +191,20 @@ EOF
   :
 }
 
-function _incontext-prompt-title() {
+function _shell_context_prompt_title() {
   local template=$1 default_value=$2 value
   if [[ -z "$template" ]]; then template="%s"; fi
-  if [[ -n "$INCONTEXT_TITLE" ]]; then value=$INCONTEXT_TITLE; else value=$default_value; fi
+  if [[ -n "$SHELL_CONTEXT_TITLE" ]]; then value=$SHELL_CONTEXT_TITLE; else value=$default_value; fi
   if [[ -z "$value" ]]; then return 0; fi
 
   # shellcheck disable=SC2059
   printf "$template" "$value"
 }
 
-function _use-incontext-usage() {
+function _shell_context_use_usage() {
   cat <<EOF
-Usage: in-context use <context_name>
-Usage: in-context use -h
+Usage: shell-context use <context_name>
+Usage: shell-context use -h
 
 Use the context with the given name. This will open a new bash or zsh
 session matching the current shell, with the environment variables set
@@ -220,7 +220,7 @@ Arguments:
   context_name:
     The name of the context to use. This should correspond to a
     <context_name>.context-start file in the
-    ~/.config/in-context/contexts/ directory.
+    ~/.config/shell-context/contexts/ directory.
 
 Options:
   -h  Show this usage output and return.
@@ -228,11 +228,11 @@ EOF
   :
 }
 
-function _incontext-use() {
+function _shell_context_use() {
   local OPTIND=1 opt OPTARG
   while getopts ":h" opt; do
     case $opt in
-      h) _use-incontext-usage; return 0 ;;
+      h) _shell_context_use_usage; return 0 ;;
       \?) echo "Invalid option: -$OPTARG" >&2; return 1 ;;
     esac
   done
@@ -240,41 +240,41 @@ function _incontext-use() {
   local context_name="$1"
 
   if [[ -z "$context_name" ]]; then
-    _use-incontext-usage >&2
+    _shell_context_use_usage >&2
     return 1
   fi
 
-  local context_start_file=$HOME/.config/in-context/contexts/"$context_name".context-start
+  local context_start_file=$HOME/.config/shell-context/contexts/"$context_name".context-start
   if [[ ! -f $context_start_file ]]; then
     echo "No context-start file found for '$context_name' at $context_start_file." >&2
     return 1
   fi
 
-  local context_finalize_file=$HOME/.config/in-context/contexts/"$context_name".context-finalize
+  local context_finalize_file=$HOME/.config/shell-context/contexts/"$context_name".context-finalize
   if [[ ! -f $context_finalize_file ]]; then
     context_finalize_file=
   fi
 
   local current_shell
-  current_shell=$(_incontext-current-shell) || return 1
+  current_shell=$(_shell_context_current_shell) || return 1
 
   echo "Entering context '$context_name'..."
-  if [[ -n "$INCONTEXT" ]]; then
-    INCONTEXT="$context_name" INCONTEXT_START_FILE="$context_start_file" INCONTEXT_FINALIZE_FILE="$context_finalize_file" \
+  if [[ -n "$SHELL_CONTEXT" ]]; then
+    SHELL_CONTEXT="$context_name" SHELL_CONTEXT_START_FILE="$context_start_file" SHELL_CONTEXT_FINALIZE_FILE="$context_finalize_file" \
       exec "$current_shell"
   else
-    INCONTEXT="$context_name" INCONTEXT_START_FILE="$context_start_file" INCONTEXT_FINALIZE_FILE="$context_finalize_file" \
+    SHELL_CONTEXT="$context_name" SHELL_CONTEXT_START_FILE="$context_start_file" SHELL_CONTEXT_FINALIZE_FILE="$context_finalize_file" \
       "$current_shell"
   fi
 }
 
-function _unload-incontext-usage() {
+function _shell_context_unload_usage() {
   cat <<EOF
-Usage: in-context unload [-qy]
-Usage: in-context unload -h
+Usage: shell-context unload [-qy]
+Usage: shell-context unload -h
 
 Unload the current context (if any) by exiting the current shell
-session. If INCONTEXT is not set, then this will do nothing.
+session. If SHELL_CONTEXT is not set, then this will do nothing.
 
 Options:
   -q  Be less verbose.
@@ -285,7 +285,7 @@ EOF
   :
 }
 
-function _incontext-unload() {
+function _shell_context_unload() {
   local OPTIND=1 opt OPTARG
   local prompt_for_conf=1
   local be_less_verbose
@@ -293,42 +293,42 @@ function _incontext-unload() {
     case $opt in
       q) be_less_verbose=1 ;;
       y) prompt_for_conf= ;;
-      h) _unload-incontext-usage; return 0 ;;
+      h) _shell_context_unload_usage; return 0 ;;
       \?) echo "Invalid option: -$OPTARG" >&2; return 1 ;;
     esac
   done
 
-  if [[ -z "$INCONTEXT" ]]; then
+  if [[ -z "$SHELL_CONTEXT" ]]; then
     echo "No context currently loaded." >&2
     return 0
   fi
 
   if [[ $prompt_for_conf == 1 ]]; then
-    if ! _incontext-confirm "Unload current context '$INCONTEXT'? [Y/n] "; then
+    if ! _shell_context_confirm "Unload current context '$SHELL_CONTEXT'? [Y/n] "; then
       echo "Aborting context unload." >&2
       return 1
     fi
   fi
 
-  echo "Unloading context '$INCONTEXT'..."
+  echo "Unloading context '$SHELL_CONTEXT'..."
   exit
 }
 
-function _use-local-incontext-usage() {
+function _shell_context_use_local_usage() {
   cat <<EOF
-Usage: in-context use-local [options]
-Usage: in-context use-local -h
+Usage: shell-context use-local [options]
+Usage: shell-context use-local -h
 
-By default, switches to the context specified by a .incontext file
+By default, switches to the context specified by a .shell-context file
 in the current working directory or any of its ancestors (in the
 current logical path) or unloads any currently loaded context if no
-.incontext file is found. See the help for in-context use for more
+.shell-context file is found. See the help for shell-context use for more
 details about loading contexts.
 
 Options:
   -y  Don't prompt for confirmation before switching contexts or
       unloading the current context.
-  -p  Look for a .incontext file in the physical path of the current
+  -p  Look for a .shell-context file in the physical path of the current
       working directory (dereferencing symlinks) instead of the
       logical path.
   -q  Be less verbose.
@@ -337,7 +337,7 @@ EOF
   :
 }
 
-function _incontext-use-local() {
+function _shell_context_use_local() {
   local OPTIND=1 opt OPTARG
   local prompt_for_conf=1
   local use_physical_path
@@ -347,7 +347,7 @@ function _incontext-use-local() {
       y) prompt_for_conf= ;;
       p) use_physical_path=true ;;
       q) be_less_verbose=1 ;;
-      h) _use-local-incontext-usage; return 0 ;;
+      h) _shell_context_use_local_usage; return 0 ;;
       \?) echo "Invalid option: -$OPTARG" >&2; return 1 ;;
     esac
   done
@@ -361,8 +361,8 @@ function _incontext-use-local() {
 
   local context_file
   while [[ "$search_path" != "/" ]]; do
-    if [[ -f "$search_path/.incontext" ]]; then
-      context_file="$search_path/.incontext"
+    if [[ -f "$search_path/.shell-context" ]]; then
+      context_file="$search_path/.shell-context"
       break
     fi
     search_path=$(dirname "$search_path")
@@ -375,61 +375,61 @@ function _incontext-use-local() {
       echo "Context file $context_file is empty." >&2
       return 1
     fi
-    if [[ "$context_name" == "$INCONTEXT" ]]; then
+    if [[ "$context_name" == "$SHELL_CONTEXT" ]]; then
       if [[ $be_less_verbose != 1 ]]; then
         echo "Already in context '$context_name'." >&2
       fi
       return 0
     fi
-    _incontext-use "$context_name"
+    _shell_context_use "$context_name"
   else
-    if [[ -n "$INCONTEXT" ]]; then
+    if [[ -n "$SHELL_CONTEXT" ]]; then
       if [[ $prompt_for_conf == 1 ]]; then
-        if ! _incontext-confirm "No .incontext file found. Unload current context '$INCONTEXT'? [Y/n] "; then
+        if ! _shell_context_confirm "No .shell-context file found. Unload current context '$SHELL_CONTEXT'? [Y/n] "; then
           echo "Aborting context unload." >&2
           return 1
         fi
       fi
-      _incontext-unload -y ${be_less_verbose:+-q}
+      _shell_context_unload -y ${be_less_verbose:+-q}
     else
       if [[ $be_less_verbose != 1 ]]; then
-        echo "No .incontext file found and no context currently loaded." >&2
+        echo "No .shell-context file found and no context currently loaded." >&2
       fi
       return 0
     fi
   fi
 }
 
-function _incontext-usage() {
+function _shell_context_usage() {
   cat <<EOF
-Usage: in-context <subcommand> [arguments]
-Usage: in-context -h
+Usage: shell-context <subcommand> [arguments]
+Usage: shell-context -h
 
 This script is intended to be located in your ~/.local/lib/
 directory and sourced from your shell startup file (for example
 ~/.bashrc, ~/.bash_profile, or ~/.zshrc). It provides the
-in-context function for managing your working context with the
+shell-context function for managing your working context with the
 Shell Context project.
 
 Each context runs in a separate bash or zsh session with environment
-variables set according to the particular context. The INCONTEXT
+variables set according to the particular context. The SHELL_CONTEXT
 environment variable is set to the name of the current context, and
 other environment variables can be set as needed by the context.
 
-Call "in-context init-start" near the start of that startup file and
-"in-context init-finalize" near the end.
+Call "shell-context init-start" near the start of that startup file and
+"shell-context init-finalize" near the end.
 
 For each context, there should be a <context-name>.context-start
-file in the ~/.config/in-context/contexts/ directory, which is
+file in the ~/.config/shell-context/contexts/ directory, which is
 sourced near the beginning of the startup file of the context's
 bash or zsh session. This file should set any environment
 variables needed for the context, and optionally set
-INCONTEXT_TITLE to a string to be used instead of the context name
+SHELL_CONTEXT_TITLE to a string to be used instead of the context name
 as the title of the context in the prompt.
 
 Each context may also optionally have a
 <context-name>.context-finalize file in the
-~/.config/in-context/contexts/ directory, which is sourced near the
+~/.config/shell-context/contexts/ directory, which is sourced near the
 end of the startup file of the context's bash or zsh session. This
 should perform any actions that require access to executables
 and functions defined in the startup file, such as pyenv
@@ -437,37 +437,37 @@ or nvm initialization.
 
 Each context may also optionally have a
 <context-name>.context-cleanup file in the
-~/.config/in-context/contexts/ directory, which is sourced before
+~/.config/shell-context/contexts/ directory, which is sourced before
 switching from one context to another.
 
 If there is a file named _default.context-start in the
-~/.config/in-context/contexts/ directory, then it will be sourced
+~/.config/shell-context/contexts/ directory, then it will be sourced
 when no context is loaded. Similarly, if there is a file named
-_default.context-finalize in the ~/.config/in-context/contexts/
+_default.context-finalize in the ~/.config/shell-context/contexts/
 directory, then it will be sourced when no context is loaded.
 
 If there is a file named _default.context-cleanup in the
-~/.config/in-context/contexts/ directory, then it will be sourced
+~/.config/shell-context/contexts/ directory, then it will be sourced
 before switching from one context to another. If no cleanup file
 is applicable, then the cleanup will consist of restoring the PATH
 environment variable to what it was just before the current
-context was loaded (from the INCONTEXT_PRE_PATH environment
+context was loaded (from the SHELL_CONTEXT_PRE_PATH environment
 variable).
 
 If a cleanup file is applicable, and the PATH variable value should
 be restored, then the cleanup file should use the
-INCONTEXT_PRE_PATH environment variable to restore the PATH variable
+SHELL_CONTEXT_PRE_PATH environment variable to restore the PATH variable
 to what it was before the current context was loaded.
 
-A "local" context is defined by the presence of a .incontext file in
+A "local" context is defined by the presence of a .shell-context file in
 the current directory or any of its ancestors, which contains the
 name of a context.
 
-If you are using Git, then you should globally ignore .incontext
+If you are using Git, then you should globally ignore .shell-context
 files by adding the following line to your ~/.config/git/ignore
 file:
 
-  .incontext
+  .shell-context
 
 Subcommands:
   init-start      Initialize the Shell Context system.
@@ -475,18 +475,18 @@ Subcommands:
   prompt-title    Output the prompt title for the current context.
   use             Enter a named context.
   unload          Exit the current context shell.
-  use-local       Use the nearest .incontext file.
+  use-local       Use the nearest .shell-context file.
 
-Run "in-context <subcommand> -h" for subcommand-specific help.
+Run "shell-context <subcommand> -h" for subcommand-specific help.
 EOF
   :
 }
 
-function in-context() {
+function shell-context() {
   local OPTIND=1 opt OPTARG
   while getopts ":h" opt; do
     case $opt in
-      h) _incontext-usage; return 0 ;;
+      h) _shell_context_usage; return 0 ;;
       \?) echo "Invalid option: -$OPTARG" >&2; return 1 ;;
     esac
   done
@@ -496,16 +496,16 @@ function in-context() {
   shift || true
 
   case "$subcommand" in
-    init-start) _incontext-init-start "$@" ;;
-    init-finalize) _incontext-init-finalize "$@" ;;
-    prompt-title) _incontext-prompt-title "$@" ;;
-    use) _incontext-use "$@" ;;
-    unload) _incontext-unload "$@" ;;
-    use-local) _incontext-use-local "$@" ;;
-    ""|-h|--help) _incontext-usage ;;
+    init-start) _shell_context_init_start "$@" ;;
+    init-finalize) _shell_context_init_finalize "$@" ;;
+    prompt-title) _shell_context_prompt_title "$@" ;;
+    use) _shell_context_use "$@" ;;
+    unload) _shell_context_unload "$@" ;;
+    use-local) _shell_context_use_local "$@" ;;
+    ""|-h|--help) _shell_context_usage ;;
     *)
       echo "Unknown subcommand: $subcommand" >&2
-      _incontext-usage >&2
+      _shell_context_usage >&2
       return 1
       ;;
   esac
