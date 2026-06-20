@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 
-SCRIPT_PATH="$BATS_TEST_DIRNAME/../src/in-context.bash"
+SCRIPT_PATH="$BATS_TEST_DIRNAME/../src/shell-context.bash"
 
 setup() {
   export HOME="$BATS_TEST_TMPDIR/home"
@@ -23,6 +23,7 @@ EOF
 
   [ "$status" -eq 0 ]
   [[ "$output" == *"Usage: in-context <subcommand> [arguments]"* ]]
+  [[ "$output" == *"Shell Context project."* ]]
 }
 
 @test "unknown subcommands fail with usage output" {
@@ -31,6 +32,19 @@ EOF
   [ "$status" -eq 1 ]
   [[ "$output" == *"Unknown subcommand: unknown"* ]]
   [[ "$output" == *"Usage: in-context <subcommand> [arguments]"* ]]
+  [[ "$output" == *"Shell Context project."* ]]
+}
+
+@test "init subcommand help uses the Shell Context name" {
+  run bash -lc 'source "$1"; in-context init-start -h' _ "$SCRIPT_PATH"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Initialize the Shell Context system."* ]]
+
+  run bash -lc 'source "$1"; in-context init-finalize -h' _ "$SCRIPT_PATH"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Finalize the initialization of the Shell Context system."* ]]
 }
 
 @test "prompt-title uses the explicit title value" {

@@ -1,9 +1,9 @@
-# File: in-context.bash
+# File: shell-context.bash
 
 # This script is intended to be located in your ~/.local/lib/
 # directory and sourced from near the start of your ~/.bashrc or
 # ~/.bash_profile. It provides the in-context function for managing
-# your working context with the In Context project.
+# your working context with the Shell Context project.
 #
 # Each context runs in a separate bash session with environment
 # variables set according to the particular context. The INCONTEXT
@@ -72,7 +72,7 @@ function _incontext-init-usage() {
 Usage: in-context init-start
 Usage: in-context init-start -h
 
-Initialize the In Context system. This should be called near the
+Initialize the Shell Context system. This should be called near the
 start of your .bashrc or .bash_profile.
 
 Options:
@@ -117,7 +117,7 @@ function _incontext-finalize-usage() {
 Usage: in-context init-finalize
 Usage: in-context init-finalize -h
 
-Finalize the initialization of the In Context system. This should be
+Finalize the initialization of the Shell Context system. This should be
 called near the end of your .bashrc or .bash_profile.
 
 Options:
@@ -383,7 +383,7 @@ Usage: in-context -h
 This script is intended to be located in your ~/.local/lib/
 directory and sourced from near the start of your ~/.bashrc or
 ~/.bash_profile. It provides the in-context function for managing
-your working context with the In Context project.
+your working context with the Shell Context project.
 
 Each context runs in a separate bash session with environment
 variables set according to the particular context. The INCONTEXT
@@ -441,8 +441,8 @@ file:
   .incontext
 
 Subcommands:
-  init-start      Initialize the In Context system.
-  init-finalize   Finalize In Context initialization.
+  init-start      Initialize the Shell Context system.
+  init-finalize   Finalize Shell Context initialization.
   prompt-title    Output the prompt title for the current context.
   use             Enter a named context.
   unload          Exit the current context shell.
