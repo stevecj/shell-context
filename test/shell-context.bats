@@ -123,6 +123,38 @@ EOF
   [[ "$output" == *"No context-start file found for 'missing'"* ]]
 }
 
+@test "use sources the current context cleanup file before switching contexts" {
+  install_fake_shell
+  mkdir -p "$HOME/.config/shell-context/contexts"
+  : >"$HOME/.config/shell-context/contexts/current.context-start"
+  printf 'printf cleaned >"$CLEANUP_MARKER"\n' >"$HOME/.config/shell-context/contexts/current.context-cleanup"
+  : >"$HOME/.config/shell-context/contexts/next.context-start"
+  local cleanup_marker="$BATS_TEST_TMPDIR/current-cleanup.marker"
+
+  run_in_test_shell 'export HOME="$1"; export PATH="$3:$PATH"; export CLEANUP_MARKER="$4"; export SHELL_CONTEXT=current; source "$2"; shell-context use next 2>&1' "$HOME" "$SCRIPT_PATH" "$FAKE_BIN" "$cleanup_marker"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Entering context 'next'..."* ]]
+  [[ "$output" == *"FAKE_SHELL CMD=$TEST_SHELL SHELL_CONTEXT=next START=$HOME/.config/shell-context/contexts/next.context-start FINAL="* ]]
+  [ "$(cat "$cleanup_marker")" = "cleaned" ]
+}
+
+@test "use falls back to the default cleanup file before switching contexts" {
+  install_fake_shell
+  mkdir -p "$HOME/.config/shell-context/contexts"
+  printf 'printf default-cleanup >"$CLEANUP_MARKER"\n' >"$HOME/.config/shell-context/contexts/_default.context-cleanup"
+  : >"$HOME/.config/shell-context/contexts/current.context-start"
+  : >"$HOME/.config/shell-context/contexts/next.context-start"
+  local cleanup_marker="$BATS_TEST_TMPDIR/default-cleanup.marker"
+
+  run_in_test_shell 'export HOME="$1"; export PATH="$3:$PATH"; export CLEANUP_MARKER="$4"; export SHELL_CONTEXT=current; source "$2"; shell-context use next 2>&1' "$HOME" "$SCRIPT_PATH" "$FAKE_BIN" "$cleanup_marker"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Entering context 'next'..."* ]]
+  [[ "$output" == *"FAKE_SHELL CMD=$TEST_SHELL SHELL_CONTEXT=next START=$HOME/.config/shell-context/contexts/next.context-start FINAL="* ]]
+  [ "$(cat "$cleanup_marker")" = "default-cleanup" ]
+}
+
 @test "use-local reports when no local context exists" {
   mkdir -p "$BATS_TEST_TMPDIR/work"
 

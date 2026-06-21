@@ -222,11 +222,16 @@ Use the context with the given name. This will open a new bash or zsh
 session matching the current shell, with the environment variables set
 according to the context.
 
+When switching from one context to another, Shell Context sources the
+current context's .context-cleanup file first if one exists. If the
+current context does not have a .context-cleanup file, then
+_default.context-cleanup will be sourced instead if it exists.
+
 Limitations:
-  - Does not unload the current context before switching to the new
-    context, so any environment variables set by the current context
-    will remain in the new context unless they are specifically unset
-    or re-set by the new context's .context-start file.
+- Context switching does not exit the current subshell or invoke a
+  new shell, so any state from the current context will still be
+  present in the new context unless that has been cleaned up in a
+  .context-cleanup file.
 
 Arguments:
   context_name:
@@ -269,6 +274,16 @@ function _shell_context_use() {
 
   local current_shell
   current_shell=$(_shell_context_current_shell) || return 1
+
+  local current_context_cleanup_file=
+  if [[ -n "$SHELL_CONTEXT" ]]; then
+    current_context_cleanup_file=$HOME/.config/shell-context/contexts/"$SHELL_CONTEXT".context-cleanup
+    if [[ -f $current_context_cleanup_file ]]; then
+      . "$current_context_cleanup_file" || return 1
+    elif [[ -f "$HOME/.config/shell-context/contexts/_default.context-cleanup" ]]; then
+      . "$HOME/.config/shell-context/contexts/_default.context-cleanup" || return 1
+    fi
+  fi
 
   echo "Entering context '$context_name'..."
   if [[ -n "$SHELL_CONTEXT" ]]; then
