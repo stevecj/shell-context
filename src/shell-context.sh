@@ -9,76 +9,8 @@ function _shell_context_usage() {
 Usage: shell-context <subcommand> [arguments]
 Usage: shell-context -h
 
-This script is intended to be located in your ~/.local/lib/
-directory and sourced from your shell startup file (for example
-~/.bashrc, ~/.bash_profile, or ~/.zshrc). It provides the
-shell-context function for managing your working context with the
-Shell Context project.
-
-Each context runs in a separate bash or zsh session with environment
-variables set according to the particular context. The SHELL_CONTEXT
-environment variable is set to the name of the current context, and
-other environment variables can be set as needed by the context's
-script files.
-
-Context script files must be located in the
-~/.config/shell-context/contexts/ directory and should be named
-according to the following convention:
-  <context-name>.context-start (required)
-  <context-name>.context-finalize (optional)
-  <context-name>.context-cleanup (optional)
-
-That directory may also contain _default.context-start,
-_default.context-finalize, and/or _default.context-cleanup files,
-which will be sourced when no context is loaded (for the start and
-finalize files) or when switching from the context to another but
-there is no cleanup file for the current context (for the cleanup
-file).
-
-Put a call to `shell-context init-start" near the beginning of the
-shell startup file and a call to `shell-context init-finalize` near
-the end of the file.
-
-For each context, there must be a <context-name>.context-start
-file in the ~/.config/shell-context/contexts/ directory, which is
-sourced by the call to `shell-context init-start`.  This file
-should set environment variables needed for the context, and
-optionally set `SHELL_CONTEXT_TITLE` to a string to be used instead
-of the context name as the title of the context in the prompt.
-
-Each context may also optionally have a
-<context-name>.context-finalize file in the
-~/.config/shell-context/contexts/ directory, which is sourced by the
-call to `shell-context init-finalize`. This should perform any
-actions that require access to executables and functions defined
-previously in the startup, such as pyenv or nvm initialization.
-
-Finally, each context may also optionally have a
-<context-name>.context-cleanup file in the
-~/.config/shell-context/contexts/ directory, which is sourced before
-switching from the current context to another (but not when simply
-uloading a context).
-
-When a shell session is started with no context loaded, then any
-files in ~/.config/shell-context/contexts/ naned 
-_default.context-start or _default.context-finalize will be sourced
-by the calls to `shell-context init-start` and/or
-`shell-context init-finalize`, respectively.
-
-If a cleanup file is applicable, and the PATH variable value should
-be restored, then the cleanup file should use the
-`SHELL_CONTEXT_PRE_PATH` environment variable to restore the `PATH`
-variable to what it was before the current context was loaded.
-
-A "local" context is defined as the presence of a .shell-context file
-in a directory or any of its ancestors, which contains the name of a
-context.
-
-If you are using Git, then you should globally ignore .shell-context
-files by adding the following line to your ~/.config/git/ignore
-file:
-
-  .shell-context
+Options:
+  -h  Show this usage output and exit.
 
 Subcommands:
   init-start      Initialize the Shell Context system.
@@ -156,7 +88,7 @@ start of your shell startup file (for example ~/.bashrc,
 ~/.bash_profile, or ~/.zshrc).
 
 Options:
-  -h  Show this usage output and return.
+  -h  Show this usage output and exit.
 EOF
   :
 }
@@ -202,7 +134,7 @@ called near the end of your shell startup file (for example ~/.bashrc,
 ~/.bash_profile, or ~/.zshrc).
 
 Options:
-  -h  Show this usage output and return.
+  -h  Show this usage output and exit.
 EOF
   :
 }
@@ -240,7 +172,7 @@ Arguments:
     A default value to use in place of SHELL_CONTEXT_TITLE if not set.
 
 Options:
-  -h  Show this usage output and return.
+  -h  Show this usage output and exit.
 EOF
   :
 }
@@ -277,7 +209,7 @@ Arguments:
     ~/.config/shell-context/contexts/ directory.
 
 Options:
-  -h  Show this usage output and return.
+  -h  Show this usage output and exit.
 EOF
   :
 }
@@ -334,7 +266,7 @@ Options:
   -q  Be less verbose.
   -y  Don't prompt for confirmation before unloading the current
       context.
-  -h  Show this usage output and return.
+  -h  Show this usage output and exit.
 EOF
   :
 }
@@ -386,7 +318,7 @@ Options:
       working directory (dereferencing symlinks) instead of the
       logical path.
   -q  Be less verbose.
-  -h  Show this usage output and return.
+  -h  Show this usage output and exit.
 EOF
   :
 }
