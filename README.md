@@ -22,9 +22,8 @@ As a nice side effect of this design, the context configuration files
 cannot be accidentally committed to version control, possibly exposing
 secrets or causing conflicts between collaborators.
 
-Shell Context explicitly supports either bash or zsh but is not tested
-with any other shells, and in particular, does not attempt to be POSIX
-compliant.
+Shell Context supports either bash or zsh shell types and no others at
+this time.
 
 ## Getting Started
 
