@@ -1,69 +1,5 @@
 # File: shell-context.sh
 
-# This script is intended to be located in your ~/.local/lib/
-# directory and sourced from your shell startup file (for example
-# ~/.bashrc, ~/.bash_profile, or ~/.zshrc). It provides the
-# shell-context function for managing your working context with the
-# Shell Context project.
-#
-# Each context runs in a separate shell session with environment
-# variables set according to the particular context. The SHELL_CONTEXT
-# environment variable is set to the name of the current context, and
-# other environment variables can be set as needed by the context.
-#
-# For each context, there should be a <context-name>.context-start
-# file in the ~/.config/shell-context/contexts/ directory, which is
-# sourced near the beginning of the startup file of the context's
-# bash or zsh session. This file should set any environment
-# variables needed for the context, and optionally set
-# SHELL_CONTEXT_TITLE to a string to be used instead of the context name
-# as the title of the context in the prompt.
-#
-# Each context may also optionally have a
-# <context-name>.context-finalize file in the
-# ~/.config/shell-context/contexts/ directory, which is sourced near the
-# end of the startup file of the context's bash or zsh session.
-# This should perform any actions that require access to executables
-# and functions defined in the startup file, such as pyenv
-# or nvm initialization.
-#
-# Each context may also optionally have a
-# <context-name>.context-cleanup file in the
-# ~/.config/shell-context/contexts/ directory, which is sourced before
-# switching from one context to another.
-#
-# If there is a file named _default.context-start in the
-# ~/.config/shell-context/contexts/ directory, then it will be sourced
-# when no context is loaded. Similarly, if there is a file named
-# _default.context-finalize in the ~/.config/shell-context/contexts/
-# directory, then it will be sourced when no context is loaded.
-#
-# If there is a file named _default.context-cleanup in the
-# ~/.config/shell-context/contexts/ directory, then it will be sourced
-# before switching from one context to another. If no cleanup file
-# is applicable, then the cleanup will consist of restoring the PATH
-# environment variable to what it was just before the current
-# context was loaded (from the SHELL_CONTEXT_PRE_PATH environment
-# variable).
-#
-# If a cleanup file is applicable, and the PATH variable value should
-# be restored, then the cleanup file should use the
-# SHELL_CONTEXT_PRE_PATH environment variable to restore the PATH variable
-# to what it was before the current context was loaded.
-#
-# A "local" context is defined by the presence of a .shell-context file in
-# the current directory or any of its ancestors, which contains the
-# name of a context.
-#
-# If you are using Git, then you should globally ignore .shell-context
-# files by adding the following line to your ~/.config/git/ignore
-# file:
-#
-#   .shell-context
-#
-# Invoke the system through the shell-context function and one of its
-# subcommands.
-
 if [[ ! -d "$HOME/.config/shell-context/contexts" ]]; then
   mkdir -p "$HOME/.config/shell-context/contexts"
 fi
@@ -82,54 +18,61 @@ Shell Context project.
 Each context runs in a separate bash or zsh session with environment
 variables set according to the particular context. The SHELL_CONTEXT
 environment variable is set to the name of the current context, and
-other environment variables can be set as needed by the context.
+other environment variables can be set as needed by the context's
+script files.
 
-Call "shell-context init-start" near the start of that startup file
-and "shell-context init-finalize" near the end.
+Context script files must be located in the
+~/.config/shell-context/contexts/ directory and should be named
+according to the following convention:
+  <context-name>.context-start (required)
+  <context-name>.context-finalize (optional)
+  <context-name>.context-cleanup (optional)
 
-For each context, there should be a <context-name>.context-start
+That directory may also contain _default.context-start,
+_default.context-finalize, and/or _default.context-cleanup files,
+which will be sourced when no context is loaded (for the start and
+finalize files) or when switching from the context to another but
+there is no cleanup file for the current context (for the cleanup
+file).
+
+Put a call to `shell-context init-start" near the beginning of the
+shell startup file and a call to `shell-context init-finalize` near
+the end of the file.
+
+For each context, there must be a <context-name>.context-start
 file in the ~/.config/shell-context/contexts/ directory, which is
-sourced near the beginning of the startup file of the context's
-bash or zsh session. This file should set any environment
-variables needed for the context, and optionally set
-SHELL_CONTEXT_TITLE to a string to be used instead of the context name
-as the title of the context in the prompt.
+sourced by the call to `shell-context init-start`.  This file
+should set environment variables needed for the context, and
+optionally set `SHELL_CONTEXT_TITLE` to a string to be used instead
+of the context name as the title of the context in the prompt.
 
 Each context may also optionally have a
 <context-name>.context-finalize file in the
-~/.config/shell-context/contexts/ directory, which is sourced near the
-end of the startup file of the context's bash or zsh session. This
-should perform any actions that require access to executables
-and functions defined in the startup file, such as pyenv
-or nvm initialization.
+~/.config/shell-context/contexts/ directory, which is sourced by the
+call to `shell-context init-finalize`. This should perform any
+actions that require access to executables and functions defined
+previously in the startup, such as pyenv or nvm initialization.
 
-Each context may also optionally have a
+Finally, each context may also optionally have a
 <context-name>.context-cleanup file in the
 ~/.config/shell-context/contexts/ directory, which is sourced before
-switching from one context to another.
+switching from the current context to another (but not when simply
+uloading a context).
 
-If there is a file named _default.context-start in the
-~/.config/shell-context/contexts/ directory, then it will be sourced
-when no context is loaded. Similarly, if there is a file named
-_default.context-finalize in the ~/.config/shell-context/contexts/
-directory, then it will be sourced when no context is loaded.
-
-If there is a file named _default.context-cleanup in the
-~/.config/shell-context/contexts/ directory, then it will be sourced
-before switching from one context to another. If no cleanup file
-is applicable, then the cleanup will consist of restoring the PATH
-environment variable to what it was just before the current
-context was loaded (from the SHELL_CONTEXT_PRE_PATH environment
-variable).
+When a shell session is started with no context loaded, then any
+files in ~/.config/shell-context/contexts/ naned 
+_default.context-start or _default.context-finalize will be sourced
+by the calls to `shell-context init-start` and/or
+`shell-context init-finalize`, respectively.
 
 If a cleanup file is applicable, and the PATH variable value should
 be restored, then the cleanup file should use the
-SHELL_CONTEXT_PRE_PATH environment variable to restore the PATH
+`SHELL_CONTEXT_PRE_PATH` environment variable to restore the `PATH`
 variable to what it was before the current context was loaded.
 
-A "local" context is defined by the presence of a .shell-context file
-in the current directory or any of its ancestors, which contains the
-name of a context.
+A "local" context is defined as the presence of a .shell-context file
+in a directory or any of its ancestors, which contains the name of a
+context.
 
 If you are using Git, then you should globally ignore .shell-context
 files by adding the following line to your ~/.config/git/ignore
@@ -145,7 +88,7 @@ Subcommands:
   unload          Exit the current context shell.
   use-local       Use the nearest .shell-context file.
 
-Run "shell-context <subcommand> -h" for subcommand-specific help.
+Run `shell-context <subcommand> -h` for subcommand-specific help.
 EOF
   :
 }
