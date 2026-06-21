@@ -75,10 +75,10 @@ EOF
   mkdir -p "$HOME/.config/shell-context"
   : >"$HOME/.config/shell-context/DISABLED"
 
-  run_in_test_shell 'export HOME="$1"; source "$2"; shell-context use -h' "$HOME" "$SCRIPT_PATH"
+  run_in_test_shell 'export HOME="$1"; source "$2"; shell-context load -h' "$HOME" "$SCRIPT_PATH"
 
   [ "$status" -eq 0 ]
-  [[ "$output" == *"Usage: shell-context use <context_name>"* ]]
+  [[ "$output" == *"Usage: shell-context load <context_name>"* ]]
 }
 
 @test "non-help subcommands fail when Shell Context is disabled" {
@@ -116,14 +116,14 @@ EOF
   [ "$output" = "loaded|$HOME/.config/shell-context/contexts/_default.context-start" ]
 }
 
-@test "use rejects missing named contexts" {
-  run_in_test_shell 'export HOME="$1"; source "$2"; shell-context use missing 2>&1' "$HOME" "$SCRIPT_PATH"
+@test "load rejects missing named contexts" {
+  run_in_test_shell 'export HOME="$1"; source "$2"; shell-context load missing 2>&1' "$HOME" "$SCRIPT_PATH"
 
   [ "$status" -eq 1 ]
   [[ "$output" == *"No context-start file found for 'missing'"* ]]
 }
 
-@test "use sources the current context cleanup file before switching contexts" {
+@test "load sources the current context cleanup file before switching contexts" {
   install_fake_shell
   mkdir -p "$HOME/.config/shell-context/contexts"
   : >"$HOME/.config/shell-context/contexts/current.context-start"
@@ -131,7 +131,7 @@ EOF
   : >"$HOME/.config/shell-context/contexts/next.context-start"
   local cleanup_marker="$BATS_TEST_TMPDIR/current-cleanup.marker"
 
-  run_in_test_shell 'export HOME="$1"; export PATH="$3:$PATH"; export CLEANUP_MARKER="$4"; export SHELL_CONTEXT=current; source "$2"; shell-context use next 2>&1' "$HOME" "$SCRIPT_PATH" "$FAKE_BIN" "$cleanup_marker"
+  run_in_test_shell 'export HOME="$1"; export PATH="$3:$PATH"; export CLEANUP_MARKER="$4"; export SHELL_CONTEXT=current; source "$2"; shell-context load next 2>&1' "$HOME" "$SCRIPT_PATH" "$FAKE_BIN" "$cleanup_marker"
 
   [ "$status" -eq 0 ]
   [[ "$output" == *"Entering context 'next'..."* ]]
@@ -139,7 +139,7 @@ EOF
   [ "$(cat "$cleanup_marker")" = "cleaned" ]
 }
 
-@test "use falls back to the default cleanup file before switching contexts" {
+@test "load falls back to the default cleanup file before switching contexts" {
   install_fake_shell
   mkdir -p "$HOME/.config/shell-context/contexts"
   printf 'printf default-cleanup >"$CLEANUP_MARKER"\n' >"$HOME/.config/shell-context/contexts/_default.context-cleanup"
@@ -147,7 +147,7 @@ EOF
   : >"$HOME/.config/shell-context/contexts/next.context-start"
   local cleanup_marker="$BATS_TEST_TMPDIR/default-cleanup.marker"
 
-  run_in_test_shell 'export HOME="$1"; export PATH="$3:$PATH"; export CLEANUP_MARKER="$4"; export SHELL_CONTEXT=current; source "$2"; shell-context use next 2>&1' "$HOME" "$SCRIPT_PATH" "$FAKE_BIN" "$cleanup_marker"
+  run_in_test_shell 'export HOME="$1"; export PATH="$3:$PATH"; export CLEANUP_MARKER="$4"; export SHELL_CONTEXT=current; source "$2"; shell-context load next 2>&1' "$HOME" "$SCRIPT_PATH" "$FAKE_BIN" "$cleanup_marker"
 
   [ "$status" -eq 0 ]
   [[ "$output" == *"Entering context 'next'..."* ]]
@@ -155,42 +155,42 @@ EOF
   [ "$(cat "$cleanup_marker")" = "default-cleanup" ]
 }
 
-@test "use-local reports when no local context exists" {
+@test "load-local reports when no local context exists" {
   mkdir -p "$BATS_TEST_TMPDIR/work"
 
-  run_in_test_shell 'export HOME="$1"; source "$2"; cd "$3"; shell-context use-local 2>&1' "$HOME" "$SCRIPT_PATH" "$BATS_TEST_TMPDIR/work"
+  run_in_test_shell 'export HOME="$1"; source "$2"; cd "$3"; shell-context load-local 2>&1' "$HOME" "$SCRIPT_PATH" "$BATS_TEST_TMPDIR/work"
 
   [ "$status" -eq 0 ]
   [[ "$output" == *"No .shell-context file found and no context currently loaded."* ]]
 }
 
-@test "use-local errors when the discovered .shell-context file is empty" {
+@test "load-local errors when the discovered .shell-context file is empty" {
   mkdir -p "$BATS_TEST_TMPDIR/project"
   : >"$BATS_TEST_TMPDIR/project/.shell-context"
 
-  run_in_test_shell 'export HOME="$1"; source "$2"; cd "$3"; shell-context use-local 2>&1' "$HOME" "$SCRIPT_PATH" "$BATS_TEST_TMPDIR/project"
+  run_in_test_shell 'export HOME="$1"; source "$2"; cd "$3"; shell-context load-local 2>&1' "$HOME" "$SCRIPT_PATH" "$BATS_TEST_TMPDIR/project"
 
   [ "$status" -eq 1 ]
   [[ "$output" == *"Context file $BATS_TEST_TMPDIR/project/.shell-context is empty."* ]]
 }
 
-@test "use-local short-circuits when the requested context is already active" {
+@test "load-local short-circuits when the requested context is already active" {
   mkdir -p "$BATS_TEST_TMPDIR/project"
   printf 'demo\n' >"$BATS_TEST_TMPDIR/project/.shell-context"
 
-  run_in_test_shell 'export HOME="$1"; source "$2"; export SHELL_CONTEXT=demo; cd "$3"; shell-context use-local 2>&1' "$HOME" "$SCRIPT_PATH" "$BATS_TEST_TMPDIR/project"
+  run_in_test_shell 'export HOME="$1"; source "$2"; export SHELL_CONTEXT=demo; cd "$3"; shell-context load-local 2>&1' "$HOME" "$SCRIPT_PATH" "$BATS_TEST_TMPDIR/project"
 
   [ "$status" -eq 0 ]
   [[ "$output" == *"Already in context 'demo'."* ]]
 }
 
-@test "use-local finds the nearest .shell-context file and launches that context in the current shell" {
+@test "load-local finds the nearest .shell-context file and launches that context in the current shell" {
   install_fake_shell
   mkdir -p "$HOME/.config/shell-context/contexts" "$BATS_TEST_TMPDIR/project/child"
   printf 'demo\n' >"$BATS_TEST_TMPDIR/project/.shell-context"
   : >"$HOME/.config/shell-context/contexts/demo.context-start"
 
-  run_in_test_shell 'export HOME="$1"; export PATH="$3:$PATH"; source "$2"; cd "$4/project/child"; shell-context use-local 2>&1' "$HOME" "$SCRIPT_PATH" "$FAKE_BIN" "$BATS_TEST_TMPDIR"
+  run_in_test_shell 'export HOME="$1"; export PATH="$3:$PATH"; source "$2"; cd "$4/project/child"; shell-context load-local 2>&1' "$HOME" "$SCRIPT_PATH" "$FAKE_BIN" "$BATS_TEST_TMPDIR"
 
   [ "$status" -eq 0 ]
   [[ "$output" == *"Entering context 'demo'..."* ]]

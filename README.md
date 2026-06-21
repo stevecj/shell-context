@@ -113,11 +113,11 @@ export SHELL_CONTEXT_TITLE="work"
 export PATH="$SHELL_CONTEXT_PRE_PATH"
 ```
 
-Once the library is sourced and at least one context file exists, start
-a context with:
+Once the library is sourced and at least one context file exists, load a
+context with:
 
 ```bash
-shell-context use work
+shell-context load work
 ```
 
 That command launches a new Bash or Zsh session with the selected
@@ -147,14 +147,14 @@ work
 Then, while in the project directory, run:
 
 ```bash
-shell-context use-local
+shell-context load-local
 ```
 
 That command searches the current directory and its ancestors for the
 nearest `.shell-context` file and switches to the named context. If you
 use Git, add `.shell-context` to your global ignore file so that
 project-local selections do not get committed accidentally.  See the
-help (using the `-h` option) for `shell-context use-local` for more
+help (using the `-h` option) for `shell-context load-local` for more
 usage details.
 
 ## Installation

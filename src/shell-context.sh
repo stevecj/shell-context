@@ -16,9 +16,9 @@ Subcommands:
   init-start      Initialize the Shell Context system.
   init-finalize   Finalize Shell Context initialization.
   prompt-title    Output the prompt title for the current context.
-  use             Enter a named context.
+  load            Enter a named context.
   unload          Exit the current context shell.
-  use-local       Use the nearest .shell-context file.
+  load-local      Load  context named in nearest .shell-context file.
 
 Run `shell-context <subcommand> -h` for subcommand-specific help.
 EOF
@@ -55,9 +55,9 @@ function shell-context() {
     init-start)    _shell_context_init_start "$@" ;;
     init-finalize) _shell_context_init_finalize "$@" ;;
     prompt-title)  _shell_context_prompt_title "$@" ;;
-    use)           _shell_context_use "$@" ;;
+    load)          _shell_context_load "$@" ;;
     unload)        _shell_context_unload "$@" ;;
-    use-local)     _shell_context_use_local "$@" ;;
+    load-local)    _shell_context_load_local "$@" ;;
     ""|-h|--help)  _shell_context_usage ;;
     *)
       echo "Unknown subcommand: $subcommand" >&2
@@ -213,10 +213,10 @@ function _shell_context_prompt_title() {
   printf "$template" "$value"
 }
 
-function _shell_context_use_usage() {
+function _shell_context_load_usage() {
   cat <<'EOF'
-Usage: shell-context use <context_name>
-Usage: shell-context use -h
+Usage: shell-context load <context_name>
+Usage: shell-context load -h
 
 Use the context with the given name. This will open a new bash or zsh
 session matching the current shell, with the environment variables set
@@ -235,7 +235,7 @@ Limitations:
 
 Arguments:
   context_name:
-    The name of the context to use. This should correspond to a
+    The name of the context to load. This should correspond to a
     <context_name>.context-start file in the
     ~/.config/shell-context/contexts/ directory.
 
@@ -245,11 +245,11 @@ EOF
   :
 }
 
-function _shell_context_use() {
+function _shell_context_load() {
   local OPTIND=1 opt OPTARG
   while getopts ":h" opt; do
     case $opt in
-      h) _shell_context_use_usage; return 0 ;;
+      h) _shell_context_load_usage; return 0 ;;
       \?) echo "Invalid option: -$OPTARG" >&2; return 1 ;;
     esac
   done
@@ -257,7 +257,7 @@ function _shell_context_use() {
   local context_name="$1"
 
   if [[ -z "$context_name" ]]; then
-    _shell_context_use_usage >&2
+    _shell_context_load_usage >&2
     return 1
   fi
 
@@ -341,15 +341,15 @@ function _shell_context_unload() {
   exit
 }
 
-function _shell_context_use_local_usage() {
+function _shell_context_load_local_usage() {
   cat <<'EOF'
-Usage: shell-context use-local [options]
-Usage: shell-context use-local -h
+Usage: shell-context load-local [options]
+Usage: shell-context load-local -h
 
-By default, switches to the context specified by a .shell-context file
+By default, loads the context specified by a .shell-context file
 in the current working directory or any of its ancestors (in the
 current logical path) or unloads any currently loaded context if no
-.shell-context file is found. See the help for shell-context use for more
+.shell-context file is found. See the help for shell-context load for more
 details about loading contexts.
 
 Options:
@@ -364,7 +364,7 @@ EOF
   :
 }
 
-function _shell_context_use_local() {
+function _shell_context_load_local() {
   local OPTIND=1 opt OPTARG
   local prompt_for_conf=1
   local use_physical_path
@@ -374,7 +374,7 @@ function _shell_context_use_local() {
       y) prompt_for_conf= ;;
       p) use_physical_path=true ;;
       q) be_less_verbose=1 ;;
-      h) _shell_context_use_local_usage; return 0 ;;
+      h) _shell_context_load_local_usage; return 0 ;;
       \?) echo "Invalid option: -$OPTARG" >&2; return 1 ;;
     esac
   done
@@ -408,7 +408,7 @@ function _shell_context_use_local() {
       fi
       return 0
     fi
-    _shell_context_use "$context_name"
+    _shell_context_load "$context_name"
   else
     if [[ -n "$SHELL_CONTEXT" ]]; then
       if [[ $prompt_for_conf == 1 ]]; then
