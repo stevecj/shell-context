@@ -5,7 +5,7 @@ if [[ ! -d "$HOME/.config/shell-context/contexts" ]]; then
 fi
 
 function _shell_context_usage() {
-  cat <<EOF
+  cat <<'EOF'
 Usage: shell-context <subcommand> [arguments]
 Usage: shell-context -h
 
@@ -38,20 +38,44 @@ function shell-context() {
   local subcommand=$1
   shift || true
 
+  if [[ -f "$HOME/.config/shell-context/DISABLED" ]]; then
+    case "$subcommand" in
+      ""|-h|--help) ;;
+      *)
+        if ! _shell_context_subcommand_help_requested "$@"; then
+          echo "Shell Context is disabled."
+	  echo "Remove the \"$HOME/.config/shell-context/DISABLED\" file to re-enable Shell Context." >&2
+          return 1
+        fi
+        ;;
+    esac
+  fi
+
   case "$subcommand" in
-    init-start) _shell_context_init_start "$@" ;;
+    init-start)    _shell_context_init_start "$@" ;;
     init-finalize) _shell_context_init_finalize "$@" ;;
-    prompt-title) _shell_context_prompt_title "$@" ;;
-    use) _shell_context_use "$@" ;;
-    unload) _shell_context_unload "$@" ;;
-    use-local) _shell_context_use_local "$@" ;;
-    ""|-h|--help) _shell_context_usage ;;
+    prompt-title)  _shell_context_prompt_title "$@" ;;
+    use)           _shell_context_use "$@" ;;
+    unload)        _shell_context_unload "$@" ;;
+    use-local)     _shell_context_use_local "$@" ;;
+    ""|-h|--help)  _shell_context_usage ;;
     *)
       echo "Unknown subcommand: $subcommand" >&2
       _shell_context_usage >&2
       return 1
       ;;
   esac
+}
+
+function _shell_context_subcommand_help_requested() {
+  local arg
+  for arg in "$@"; do
+    if [[ "$arg" == "-h" ]]; then
+      return 0
+    fi
+  done
+
+  return 1
 }
 
 function _shell_context_current_shell() {
@@ -79,13 +103,13 @@ function _shell_context_confirm() {
 }
 
 function _shell_context_init_usage() {
-  cat <<EOF
+  cat <<'EOF'
 Usage: shell-context init-start
 Usage: shell-context init-start -h
 
 Initialize the Shell Context system. This should be called near the
-start of your shell startup file (for example ~/.bashrc,
-~/.bash_profile, or ~/.zshrc).
+start of your shell startup file, e.g. example ~/.bashrc,
+~/.bash_profile, or ~/.zshrc .
 
 Options:
   -h  Show this usage output and exit.
@@ -125,13 +149,13 @@ function _shell_context_init_start() {
 }
 
 function _shell_context_finalize_usage() {
-  cat <<EOF
+  cat <<'EOF'
 Usage: shell-context init-finalize
 Usage: shell-context init-finalize -h
 
 Finalize the initialization of the Shell Context system. This should be
-called near the end of your shell startup file (for example ~/.bashrc,
-~/.bash_profile, or ~/.zshrc).
+called near the end of your shell startup file, e.g. example ~/.bashrc,
+~/.bash_profile, or ~/.zshrc .
 
 Options:
   -h  Show this usage output and exit.
@@ -155,21 +179,23 @@ function _shell_context_init_finalize() {
 }
 
 function _shell_context_prompt_title_usage() {
-  cat <<EOF
+  cat <<'EOF'
 Usage: shell-context prompt-title [format] [default_value]
 Usage: shell-context prompt-title -h
 
 Output the context title for use in the prompt. This should be called
 from the PS1/PROMPT assignment in your shell startup file.
 
-If SHELL_CONTEXT_TITLE is not set, and no default_value is provided, then
-no output will be produced, so the prompt will not be modified.
+If SHELL_CONTEXT_TITLE is not set, and no default_value is provided,
+then no output will be produced, so the prompt will not be modified.
 
 Arguments:
   format:
-    A printf format string to format the context title (default: '%s').
+    A printf format string to format the context title (default:
+    '%s').
   default_value:
-    A default value to use in place of SHELL_CONTEXT_TITLE if not set.
+    A default value to use in place of SHELL_CONTEXT_TITLE if not set,
+    meaning no context is loaded.
 
 Options:
   -h  Show this usage output and exit.
@@ -188,7 +214,7 @@ function _shell_context_prompt_title() {
 }
 
 function _shell_context_use_usage() {
-  cat <<EOF
+  cat <<'EOF'
 Usage: shell-context use <context_name>
 Usage: shell-context use -h
 
@@ -255,7 +281,7 @@ function _shell_context_use() {
 }
 
 function _shell_context_unload_usage() {
-  cat <<EOF
+  cat <<'EOF'
 Usage: shell-context unload [-qy]
 Usage: shell-context unload -h
 
@@ -301,7 +327,7 @@ function _shell_context_unload() {
 }
 
 function _shell_context_use_local_usage() {
-  cat <<EOF
+  cat <<'EOF'
 Usage: shell-context use-local [options]
 Usage: shell-context use-local -h
 

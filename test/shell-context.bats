@@ -34,8 +34,18 @@ EOF
 
   [ "$status" -eq 0 ]
   [[ "$output" == *"Usage: shell-context <subcommand> [arguments]"* ]]
-  [[ "$output" == *"Shell Context project."* ]]
-  [[ "$output" == *"~/.zshrc"* ]]
+  [[ "$output" == *"Subcommands:"* ]]
+  [[ "$output" == *"Run \`shell-context <subcommand> -h\` for subcommand-specific help."* ]]
+}
+
+@test "top-level help is still available when Shell Context is disabled" {
+  mkdir -p "$HOME/.config/shell-context"
+  : >"$HOME/.config/shell-context/DISABLED"
+
+  run_in_test_shell 'export HOME="$1"; source "$2"; shell-context -h' "$HOME" "$SCRIPT_PATH"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Usage: shell-context <subcommand> [arguments]"* ]]
 }
 
 @test "unknown subcommands fail with usage output" {
@@ -44,7 +54,7 @@ EOF
   [ "$status" -eq 1 ]
   [[ "$output" == *"Unknown subcommand: unknown"* ]]
   [[ "$output" == *"Usage: shell-context <subcommand> [arguments]"* ]]
-  [[ "$output" == *"Shell Context project."* ]]
+  [[ "$output" == *"Subcommands:"* ]]
 }
 
 @test "init subcommand help uses the Shell Context name" {
@@ -59,6 +69,27 @@ EOF
   [ "$status" -eq 0 ]
   [[ "$output" == *"Finalize the initialization of the Shell Context system."* ]]
   [[ "$output" == *"~/.zshrc"* ]]
+}
+
+@test "subcommand help is still available when Shell Context is disabled" {
+  mkdir -p "$HOME/.config/shell-context"
+  : >"$HOME/.config/shell-context/DISABLED"
+
+  run_in_test_shell 'export HOME="$1"; source "$2"; shell-context use -h' "$HOME" "$SCRIPT_PATH"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Usage: shell-context use <context_name>"* ]]
+}
+
+@test "non-help subcommands fail when Shell Context is disabled" {
+  mkdir -p "$HOME/.config/shell-context"
+  : >"$HOME/.config/shell-context/DISABLED"
+
+  run_in_test_shell 'export HOME="$1"; source "$2"; shell-context init-start 2>&1' "$HOME" "$SCRIPT_PATH"
+
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"Shell Context is disabled."* ]]
+  [[ "$output" == *"$HOME/.config/shell-context/DISABLED"* ]]
 }
 
 @test "prompt-title uses the explicit title value" {

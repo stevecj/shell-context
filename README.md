@@ -67,6 +67,11 @@ Next, create the configuration directory:
 mkdir -p ~/.config/shell-context/contexts
 ```
 
+To temporarily disable Shell Context without removing your
+configuration, create a file named `~/.config/shell-context/DISABLED`.
+When that file exists, Shell Context will refuse all non-help commands
+until you remove it.
+
 Context behavior is defined by shell files in that directory. For a
 context named `work`, the supported files are:
 
