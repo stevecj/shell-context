@@ -19,6 +19,8 @@ Subcommands:
   load            Enter a named context.
   unload          Exit the current context shell.
   load-local      Load  context named in nearest .shell-context file.
+  auto-local      Load context from nearest .shell-context file on
+                  directory change.
 
 Run `shell-context <subcommand> -h` for subcommand-specific help.
 EOF
@@ -58,6 +60,7 @@ function shell-context() {
     load)          _shell_context_load "$@" ;;
     unload)        _shell_context_unload "$@" ;;
     load-local)    _shell_context_load_local "$@" ;;
+    auto-local)    _shell_context_auto_local "$@" ;;
     ""|-h|--help)  _shell_context_usage ;;
     *)
       echo "Unknown subcommand: $subcommand" >&2
@@ -159,6 +162,19 @@ called near the end of your shell startup file, e.g. example ~/.bashrc,
 
 Options:
   -h  Show this usage output and exit.
+
+Environment variables:
+  SHELL_CONTEXT
+    The name of the current context, if any.
+  SHELL_CONTEXT_START_FILE
+    The path to the context-start file for the current context, if any.
+  SHELL_CONTEXT_FINALIZE_FILE
+    The path to the context-finalize file for the current context, i
+    any.
+  SHELL_CONTEXT_AUTO
+    If set to "1", then the auto-local subcommand will be called as a
+    prompt command, so that the context will automatically switch if
+    applicable when the current working directory changes.
 EOF
   :
 }
@@ -171,10 +187,26 @@ function _shell_context_init_finalize() {
       \?) echo "Invalid option: -$OPTARG" >&2; return 1 ;;
     esac
   done
+
   if [[ -n "$SHELL_CONTEXT" && -f "$SHELL_CONTEXT_FINALIZE_FILE" ]]; then
     . "$SHELL_CONTEXT_FINALIZE_FILE"
   elif [[ -f "$HOME/.config/shell-context/contexts/_default.context-finalize" ]]; then
     . "$HOME/.config/shell-context/contexts/_default.context-finalize"
+  fi
+
+  if [[ "$SHELL_CONTEXT_AUTO" == "1" ]]; then
+    local current_shell
+    current_shell=$(_shell_context_current_shell) || return 1
+    if [[ $current_shell == "bash" ]]; then
+      if [[ -n "$PROMPT_COMMAND" ]]; then
+	PROMPT_COMMAND="shell-context auto-local; $PROMPT_COMMAND"
+      else
+	PROMPT_COMMAND="shell-context auto-local"
+      fi
+    elif [[ $current_shell == "zsh" ]]; then
+      autoload -U add-zsh-hook
+      add-zsh-hook precmd _shell_context_auto_local
+    fi
   fi
 }
 
@@ -349,17 +381,26 @@ Usage: shell-context load-local -h
 By default, loads the context specified by a .shell-context file
 in the current working directory or any of its ancestors (in the
 current logical path) or unloads any currently loaded context if no
-.shell-context file is found. See the help for shell-context load for more
-details about loading contexts.
+.shell-context file is found. See the help for shell-context load for
+more details about loading contexts.
 
 Options:
   -y  Don't prompt for confirmation before switching contexts or
       unloading the current context.
-  -p  Look for a .shell-context file in the physical path of the current
-      working directory (dereferencing symlinks) instead of the
-      logical path.
+  -l  Look for a .shell-context file in the logical path of the
+      current working directory, following any symlinks.
+      This is the default behavior if neither -l nor -p is specified
+      and SHELL_CONTEXT_PATH_SEARCH_MODE is not set.
+  -p  Look for a .shell-context file in the physical path of the
+      current working directory, dereferencing any symlinks.
   -q  Be less verbose.
   -h  Show this usage output and exit.
+
+Environment variables:
+  SHELL_CONTEXT_PATH_SEARCH_MODE:
+    If set to "logical", then the -l option will be used by default.
+    If set to "physical", then the -p option will be used by default.
+    If not set, then the default is "logical".
 EOF
   :
 }
@@ -367,20 +408,21 @@ EOF
 function _shell_context_load_local() {
   local OPTIND=1 opt OPTARG
   local prompt_for_conf=1
-  local use_physical_path
+  local path_search_mode=${SHELL_CONTEXT_PATH_SEARCH_MODE:-logical}
   local be_less_verbose
-  while getopts ":ypqh" opt; do
+  while getopts ":lpqyh" opt; do
     case $opt in
-      y) prompt_for_conf= ;;
-      p) use_physical_path=true ;;
+      l) path_search_mode=logical ;;
+      p) path_search_mode=physical ;;
       q) be_less_verbose=1 ;;
+      y) prompt_for_conf= ;;
       h) _shell_context_load_local_usage; return 0 ;;
       \?) echo "Invalid option: -$OPTARG" >&2; return 1 ;;
     esac
   done
 
   local search_path
-  if [[ "$use_physical_path" == true ]]; then
+  if [[ $path_search_mode == logical ]]; then
     search_path=$(pwd -P)
   else
     search_path=$(pwd)
@@ -425,4 +467,41 @@ function _shell_context_load_local() {
       return 0
     fi
   fi
+}
+
+function _shell_context_auto_local_usage() {
+  cat <<'EOF'
+Usage: shell-context auto-local
+Usage: shell-context auto-local -h
+
+Automatically load the context specified by a .shell-context file in
+the current working directory or any of its ancestors if the current
+directory has changed since the last time this was checked.
+
+Options:
+  -h  Show this usage output and exit.
+EOF
+  :
+}
+
+function _shell_context_auto_local() {
+  while getopts ":h" opt; do
+    case $opt in
+      h) _shell_context_auto_local_usage; return 0 ;;
+      \?) echo "Invalid option: -$OPTARG" >&2; return 1 ;;
+    esac
+  done
+
+  if [[ -z $SHELL_CONTEXT_PREV_DIR ]]; then
+    # Intentionally not exported.
+    SHELL_CONTEXT_PREV_DIR=$(pwd)
+    return 0
+  fi
+
+  if [[ "$SHELL_CONTEXT_PREV_DIR" != "$(pwd)" ]]; then
+    # Intentionally not exported.
+    SHELL_CONTEXT_PREV_DIR=$(pwd)
+    shell-context load-local -q -y
+  fi
+  :
 }
