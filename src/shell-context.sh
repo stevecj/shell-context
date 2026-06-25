@@ -92,6 +92,21 @@ function _shell_context_current_shell() {
   fi
 }
 
+function _shell_context_current_depth() {
+  if [[ -z ${SHELL_CONTEXT_DEPTH+x} || -z "$SHELL_CONTEXT_DEPTH" ]]; then
+    printf '%s\n' 0
+    return 0
+  fi
+
+  if [[ "$SHELL_CONTEXT_DEPTH" =~ ^[0-9]+$ ]]; then
+    printf '%s\n' "$SHELL_CONTEXT_DEPTH"
+    return 0
+  fi
+
+  echo "SHELL_CONTEXT_DEPTH must be a non-negative integer, got '$SHELL_CONTEXT_DEPTH'." >&2
+  return 1
+}
+
 function _shell_context_confirm() {
   local prompt=$1 reply
   printf '%s' "$prompt" >&2
@@ -123,19 +138,15 @@ function _shell_context_launch_shell() {
   local context_name=$1
   local context_start_file=$2
   local context_finalize_file=$3
-  local replace_current_shell=$4
-  local previous_context_name=$5
-  local current_shell
+  local previous_context_name=$4
+  local current_shell current_depth next_depth
 
   current_shell=$(_shell_context_current_shell) || return 1
+  current_depth=$(_shell_context_current_depth) || return 1
+  next_depth=$((current_depth + 1))
 
-  if [[ $replace_current_shell == 1 ]]; then
-    SHELL_CONTEXT="$context_name" SHELL_CONTEXT_START_FILE="$context_start_file" SHELL_CONTEXT_FINALIZE_FILE="$context_finalize_file" SHELL_CONTEXT_PREVIOUS_CONTEXT="$previous_context_name" \
-      exec "$current_shell"
-  else
-    SHELL_CONTEXT="$context_name" SHELL_CONTEXT_START_FILE="$context_start_file" SHELL_CONTEXT_FINALIZE_FILE="$context_finalize_file" SHELL_CONTEXT_PREVIOUS_CONTEXT="$previous_context_name" \
-      "$current_shell"
-  fi
+  SHELL_CONTEXT="$context_name" SHELL_CONTEXT_START_FILE="$context_start_file" SHELL_CONTEXT_FINALIZE_FILE="$context_finalize_file" SHELL_CONTEXT_PREVIOUS_CONTEXT="$previous_context_name" SHELL_CONTEXT_DEPTH="$next_depth" \
+   "$current_shell"
 }
 
 function _shell_context_init_usage() {
@@ -155,12 +166,16 @@ EOF
 
 function _shell_context_init_start() {
   local OPTIND=1 opt OPTARG
+  local current_depth
   while getopts ":h" opt; do
     case $opt in
       h) _shell_context_init_usage; return 0 ;;
       \?) echo "Invalid option: -$OPTARG" >&2; return 1 ;;
     esac
   done
+
+  current_depth=$(_shell_context_current_depth) || return 1
+  export SHELL_CONTEXT_DEPTH=$current_depth
 
   if [[ -z $SHELL_CONTEXT_PRE_PATH ]]; then
     export SHELL_CONTEXT_PRE_PATH=$PATH
@@ -250,7 +265,7 @@ function _shell_context_init_finalize() {
 
 function _shell_context_prompt_title_usage() {
   cat <<'EOF'
-Usage: shell-context prompt-title [format] [default_value]
+Usage: shell-context prompt-title [-n format] [-d depth_format] [-D minimum_depth] [default_value]
 Usage: shell-context prompt-title -h
 
 Output the context title for use in the prompt. This should be called
@@ -259,25 +274,59 @@ from the PS1/PROMPT assignment in your shell startup file.
 If SHELL_CONTEXT_TITLE is not set, and no default_value is provided,
 then no output will be produced, so the prompt will not be modified.
 
+Options:
+  -n format
+      A printf format string to format the context title (default:
+      '%s').
+  -d depth_format
+      A printf format string to append the current context depth to the
+      title when the depth meets the minimum threshold (default:
+      ' (%s)').
+  -D minimum_depth
+      The minimum SHELL_CONTEXT_DEPTH at which the formatted depth will
+      be appended (default: 2).
+  -h  Show this usage output and exit.
+
 Arguments:
-  format:
-    A printf format string to format the context title (default:
-    '%s').
   default_value:
     A default value to use in place of SHELL_CONTEXT_TITLE if not set,
     meaning no context is loaded.
-
-Options:
-  -h  Show this usage output and exit.
 EOF
   :
 }
 
 function _shell_context_prompt_title() {
-  local template=$1 default_value=$2 value
+  local OPTIND=1 opt OPTARG
+  local template="%s"
+  local depth_template=" (%s)"
+  local minimum_depth=2
+  while getopts ":n:d:D:h" opt; do
+    case $opt in
+      n) template=$OPTARG ;;
+      d) depth_template=$OPTARG ;;
+      D)
+        if [[ ! "$OPTARG" =~ ^[0-9]+$ ]]; then
+          echo "Option -D requires a non-negative integer argument." >&2
+          return 1
+        fi
+        minimum_depth=$OPTARG
+        ;;
+      h) _shell_context_prompt_title_usage; return 0 ;;
+      \?) echo "Invalid option: -$OPTARG" >&2; return 1 ;;
+      :) echo "Option -$OPTARG requires an argument." >&2; return 1 ;;
+    esac
+  done
+  shift $((OPTIND - 1))
+
+  local default_value=$1 value depth
   if [[ -z "$template" ]]; then template="%s"; fi
   if [[ -n "$SHELL_CONTEXT_TITLE" ]]; then value=$SHELL_CONTEXT_TITLE; else value=$default_value; fi
   if [[ -z "$value" ]]; then return 0; fi
+  depth=$(_shell_context_current_depth) || return 1
+  if (( depth >= minimum_depth )); then
+    # shellcheck disable=SC2059
+    value+=$(printf "$depth_template" "$depth")
+  fi
 
   # shellcheck disable=SC2059
   printf "$template" "$value"
@@ -292,17 +341,20 @@ Use the context with the given name. This will open a new bash or zsh
 session matching the current shell, with the environment variables set
 according to the context.
 
+Shell Context exports SHELL_CONTEXT_DEPTH to track context nesting. The
+first context loaded from a non-context shell starts at depth 1, and
+each nested context shell increments that depth by 1.
+
 When switching from one context to another, the new shell session runs
 the previous context's .context-cleanup file during initialization if
 one exists. If the previous context does not have a .context-cleanup
 file, then _default.context-cleanup will be sourced instead if it
 exists.
 
-Limitations:
-- Context switching does not exit the current subshell or invoke a
-  new shell, so any state from the current context will still be
-  present in the new context unless that has been cleaned up in a
-  .context-cleanup file.
+Each call to shell-context load opens a new nested shell. When a
+context is loaded from inside another context, SHELL_CONTEXT_DEPTH is
+incremented and the parent shell remains unchanged after the nested
+shell exits.
 
 Arguments:
   context_name:
@@ -343,10 +395,8 @@ function _shell_context_load() {
     context_finalize_file=
   fi
 
-  local replace_current_shell=
   local previous_context_name=
   if [[ -n "$SHELL_CONTEXT" ]]; then
-    replace_current_shell=1
     previous_context_name=$SHELL_CONTEXT
   fi
 
@@ -355,7 +405,6 @@ function _shell_context_load() {
     "$context_name" \
     "$context_start_file" \
     "$context_finalize_file" \
-    "$replace_current_shell" \
     "$previous_context_name"
 }
 
@@ -365,7 +414,7 @@ function _shell_context_load_default() {
     previous_context_name=$SHELL_CONTEXT
   fi
 
-  _shell_context_launch_shell "" "" "" "" "$previous_context_name"
+  _shell_context_launch_shell "" "" "" "$previous_context_name"
 }
 
 function _shell_context_unload_usage() {

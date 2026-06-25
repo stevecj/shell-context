@@ -59,9 +59,10 @@ Load a context with:
 shell-context load work
 ```
 
-That launches a new shell session with the selected context loaded. To
-leave that context (exit the subshell) later, run the following, or just
-exit the shell as you normally would:
+That always launches a new nested shell session with the selected
+context loaded, even if another context is already active. To leave that
+context (exit the subshell) later, run the following, or just exit the
+shell as you normally would:
 
 ```bash
 shell-context unload
@@ -183,6 +184,11 @@ run after the rest of the shell startup has finished, such as commands
 that depend on tools or functions initialized elsewhere in your shell
 configuration.
 
+Shell Context also exports `SHELL\_CONTEXT\_DEPTH` so nested context
+shells can detect how deeply nested they are. A shell with no loaded
+context initializes it to `0`, the first loaded context runs at depth
+`1`, and each additional nested context shell increments it by `1`.
+
 The `\*.context-cleanup` file runs in the newly started shell while it
 is initializing after switching away from a context. If your context
 modifies `PATH`, restore it from
@@ -210,8 +216,13 @@ If you want the current context to appear in your prompt, call
 example, in Bash:
 
 ```bash
-PS1='$(shell-context prompt-title "[%s] ")'"$PS1"
+PS1='$(shell-context prompt-title -n "[%s] ")'"$PS1"
 ```
+
+By default, `prompt-title` appends the current context depth when
+`SHELL\_CONTEXT\_DEPTH` is 2 or greater, using the format ` (%s)`. Use
+`-d` to change that depth suffix format or `-D` to change the minimum
+depth at which it appears.
 
 
 ## Contact
@@ -233,7 +244,8 @@ Example version history:
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE.md file for details
+This project is licensed under the MIT License - see the LICENSE.md file
+for details
 
 ## Acknowledgments
 * [direnv](https://direnv.net/)

@@ -24,19 +24,21 @@ run_in_test_shell() {
 install_fake_shell() {
   cat >"$FAKE_BIN/$TEST_SHELL" <<EOF
 #!$REAL_TEST_SHELL
-printf 'FAKE_SHELL CMD=%s SHELL_CONTEXT=%s START=%s FINAL=%s PREVIOUS=%s\n' \\
+printf 'FAKE_SHELL CMD=%s SHELL_CONTEXT=%s START=%s FINAL=%s PREVIOUS=%s DEPTH=%s\n' \\
   '$TEST_SHELL'\\
   "\${SHELL_CONTEXT-}" \\
   "\${SHELL_CONTEXT_START_FILE-}" \\
   "\${SHELL_CONTEXT_FINALIZE_FILE-}" \\
-  "\${SHELL_CONTEXT_PREVIOUS_CONTEXT-}"
+  "\${SHELL_CONTEXT_PREVIOUS_CONTEXT-}" \\
+  "\${SHELL_CONTEXT_DEPTH-}"
 if [[ -n "\${FAKE_SHELL_INIT_START_SCRIPT-}" ]]; then
   . "\$FAKE_SHELL_INIT_START_SCRIPT"
   shell-context init-start || exit \$?
-  printf 'FAKE_INIT SHELL_CONTEXT=%s TITLE=%s PREVIOUS=%s TEST_FLAG=%s\n' \\
+  printf 'FAKE_INIT SHELL_CONTEXT=%s TITLE=%s PREVIOUS=%s DEPTH=%s TEST_FLAG=%s\n' \\
     "\${SHELL_CONTEXT-}" \\
     "\${SHELL_CONTEXT_TITLE-}" \\
     "\${SHELL_CONTEXT_PREVIOUS_CONTEXT-}" \\
+    "\${SHELL_CONTEXT_DEPTH-}" \\
     "\${TEST_FLAG-}"
 fi
 EOF
@@ -114,7 +116,7 @@ EOF
 
 @test "prompt-title uses the explicit title value" {
   run_in_test_shell \
-    'source "$1"; SHELL_CONTEXT_TITLE=dev; shell-context prompt-title "[%s]" fallback' \
+    'source "$1"; SHELL_CONTEXT_TITLE=dev; shell-context prompt-title -n "[%s]" fallback' \
     "$SCRIPT_PATH"
 
   [ "$status" -eq 0 ]
@@ -123,24 +125,42 @@ EOF
 
 @test "prompt-title falls back to the provided default value" {
   run_in_test_shell \
-    'source "$1"; unset SHELL_CONTEXT_TITLE; shell-context prompt-title "[%s]" fallback' \
+    'source "$1"; unset SHELL_CONTEXT_TITLE; shell-context prompt-title -n "[%s]" fallback' \
     "$SCRIPT_PATH"
 
   [ "$status" -eq 0 ]
   [ "$output" = "[fallback]" ]
 }
 
-@test "init-start loads the default context-start file" {
+@test "prompt-title appends depth when the context depth is at least two" {
+  run_in_test_shell \
+    'source "$1"; SHELL_CONTEXT_TITLE=dev; SHELL_CONTEXT_DEPTH=2; shell-context prompt-title -n "[%s]"' \
+    "$SCRIPT_PATH"
+
+  [ "$status" -eq 0 ]
+  [ "$output" = "[dev (2)]" ]
+}
+
+@test "prompt-title supports custom depth formatting and minimum depth" {
+  run_in_test_shell \
+    'source "$1"; SHELL_CONTEXT_TITLE=dev; SHELL_CONTEXT_DEPTH=1; shell-context prompt-title -n "[%s]" -d " <%s>" -D 1' \
+    "$SCRIPT_PATH"
+
+  [ "$status" -eq 0 ]
+  [ "$output" = "[dev <1>]" ]
+}
+
+@test "init-start loads the default context-start file and initializes depth to zero" {
   mkdir -p "$HOME/.config/shell-context/contexts"
   printf 'export TEST_FLAG=loaded\n' \
     >"$HOME/.config/shell-context/contexts/_default.context-start"
 
   run_in_test_shell \
-    'export HOME="$1"; source "$2"; unset SHELL_CONTEXT TEST_FLAG; SHELL_CONTEXT_PRE_PATH=/usr/bin:/bin; shell-context init-start; printf "%s|%s" "$TEST_FLAG" "$SHELL_CONTEXT_START_FILE"'\
+    'export HOME="$1"; source "$2"; unset SHELL_CONTEXT TEST_FLAG SHELL_CONTEXT_DEPTH; SHELL_CONTEXT_PRE_PATH=/usr/bin:/bin; shell-context init-start; printf "%s|%s|%s" "$TEST_FLAG" "$SHELL_CONTEXT_START_FILE" "$SHELL_CONTEXT_DEPTH"'\
      "$HOME" "$SCRIPT_PATH"
 
   [ "$status" -eq 0 ]
-  [ "$output" = "loaded|$HOME/.config/shell-context/contexts/_default.context-start" ]
+  [ "$output" = "loaded|$HOME/.config/shell-context/contexts/_default.context-start|0" ]
 }
 
 @test "load rejects missing named contexts" {
@@ -151,7 +171,22 @@ EOF
   [[ "$output" == *"No context-start file found for 'missing'"* ]]
 }
 
-@test "load passes the previous context to the child shell and cleanup runs during init-start" {
+@test "load passes depth 1 when entering the first context shell" {
+  install_fake_shell
+  mkdir -p "$HOME/.config/shell-context/contexts"
+  : >"$HOME/.config/shell-context/contexts/demo.context-start"
+
+  run_in_test_shell \
+    'export HOME="$1"; export PATH="$3:$PATH"; export FAKE_SHELL_INIT_START_SCRIPT="$2"; source "$2"; shell-context load demo 2>&1' \
+    "$HOME" "$SCRIPT_PATH" "$FAKE_BIN"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Entering context 'demo'..."* ]]
+  [[ "$output" == *"FAKE_SHELL CMD=$TEST_SHELL SHELL_CONTEXT=demo START=$HOME/.config/shell-context/contexts/demo.context-start FINAL= PREVIOUS= DEPTH=1"* ]]
+  [[ "$output" == *"FAKE_INIT SHELL_CONTEXT=demo TITLE=demo PREVIOUS= DEPTH=1 TEST_FLAG="* ]]
+}
+
+@test "load passes the previous context to a nested child shell and leaves the parent shell unchanged" {
   install_fake_shell
   mkdir -p "$HOME/.config/shell-context/contexts"
   : >"$HOME/.config/shell-context/contexts/current.context-start"
@@ -160,13 +195,14 @@ EOF
   local cleanup_marker="$BATS_TEST_TMPDIR/current-cleanup.marker"
 
   run_in_test_shell \
-    'export HOME="$1"; export PATH="$3:$PATH"; export CLEANUP_MARKER="$4"; export FAKE_SHELL_INIT_START_SCRIPT="$2"; export SHELL_CONTEXT=current; source "$2"; shell-context load next 2>&1'\
+    'export HOME="$1"; export PATH="$3:$PATH"; export CLEANUP_MARKER="$4"; export FAKE_SHELL_INIT_START_SCRIPT="$2"; export SHELL_CONTEXT=current; export SHELL_CONTEXT_DEPTH=1; export PARENT_FLAG=original; source "$2"; shell-context load next 2>&1; printf "PARENT_FLAG=%s" "$PARENT_FLAG"'\
      "$HOME" "$SCRIPT_PATH" "$FAKE_BIN" "$cleanup_marker"
 
   [ "$status" -eq 0 ]
   [[ "$output" == *"Entering context 'next'..."* ]]
-  [[ "$output" == *"FAKE_SHELL CMD=$TEST_SHELL SHELL_CONTEXT=next START=$HOME/.config/shell-context/contexts/next.context-start FINAL= PREVIOUS=current"* ]]
-  [[ "$output" == *"FAKE_INIT SHELL_CONTEXT=next TITLE=next PREVIOUS= TEST_FLAG=next-loaded"* ]]
+  [[ "$output" == *"FAKE_SHELL CMD=$TEST_SHELL SHELL_CONTEXT=next START=$HOME/.config/shell-context/contexts/next.context-start FINAL= PREVIOUS=current DEPTH=2"* ]]
+  [[ "$output" == *"FAKE_INIT SHELL_CONTEXT=next TITLE=next PREVIOUS= DEPTH=2 TEST_FLAG=next-loaded"* ]]
+  [[ "$output" == *"PARENT_FLAG=original"* ]]
   [ "$(cat "$cleanup_marker")" = "cleaned" ]
 }
 
@@ -179,12 +215,12 @@ EOF
   local cleanup_marker="$BATS_TEST_TMPDIR/default-cleanup.marker"
 
   run_in_test_shell \
-    'export HOME="$1"; export PATH="$3:$PATH"; export CLEANUP_MARKER="$4"; export FAKE_SHELL_INIT_START_SCRIPT="$2"; export SHELL_CONTEXT=current; source "$2"; shell-context load next 2>&1' "$HOME" "$SCRIPT_PATH" "$FAKE_BIN" "$cleanup_marker"
+    'export HOME="$1"; export PATH="$3:$PATH"; export CLEANUP_MARKER="$4"; export FAKE_SHELL_INIT_START_SCRIPT="$2"; export SHELL_CONTEXT=current; export SHELL_CONTEXT_DEPTH=1; source "$2"; shell-context load next 2>&1' "$HOME" "$SCRIPT_PATH" "$FAKE_BIN" "$cleanup_marker"
 
   [ "$status" -eq 0 ]
   [[ "$output" == *"Entering context 'next'..."* ]]
-  [[ "$output" == *"FAKE_SHELL CMD=$TEST_SHELL SHELL_CONTEXT=next START=$HOME/.config/shell-context/contexts/next.context-start FINAL= PREVIOUS=current"* ]]
-  [[ "$output" == *"FAKE_INIT SHELL_CONTEXT=next TITLE=next PREVIOUS= TEST_FLAG=next-loaded"* ]]
+  [[ "$output" == *"FAKE_SHELL CMD=$TEST_SHELL SHELL_CONTEXT=next START=$HOME/.config/shell-context/contexts/next.context-start FINAL= PREVIOUS=current DEPTH=2"* ]]
+  [[ "$output" == *"FAKE_INIT SHELL_CONTEXT=next TITLE=next PREVIOUS= DEPTH=2 TEST_FLAG=next-loaded"* ]]
   [ "$(cat "$cleanup_marker")" = "default-cleanup" ]
 }
 
@@ -206,12 +242,12 @@ EOF
   local cleanup_marker="$BATS_TEST_TMPDIR/nested-default-cleanup.marker"
 
   run_in_test_shell \
-    'export HOME="$1"; export PATH="$3:$PATH"; export SHELL_CONTEXT=current; export SHELL_CONTEXT_START_FILE="$HOME/.config/shell-context/contexts/current.context-start"; export CLEANUP_MARKER="$5"; export FAKE_SHELL_INIT_START_SCRIPT="$2"; export PARENT_FLAG=original; cd "$4"; source "$2"; shell-context load-local 2>&1; printf "PARENT_FLAG=%s" "$PARENT_FLAG"' "$HOME" "$SCRIPT_PATH" "$FAKE_BIN" "$BATS_TEST_TMPDIR/work" "$cleanup_marker"
+    'export HOME="$1"; export PATH="$3:$PATH"; export SHELL_CONTEXT=current; export SHELL_CONTEXT_START_FILE="$HOME/.config/shell-context/contexts/current.context-start"; export SHELL_CONTEXT_DEPTH=1; export CLEANUP_MARKER="$5"; export FAKE_SHELL_INIT_START_SCRIPT="$2"; export PARENT_FLAG=original; cd "$4"; source "$2"; shell-context load-local 2>&1; printf "PARENT_FLAG=%s" "$PARENT_FLAG"' "$HOME" "$SCRIPT_PATH" "$FAKE_BIN" "$BATS_TEST_TMPDIR/work" "$cleanup_marker"
 
   [ "$status" -eq 0 ]
   [[ "$output" == *"No .shell-context file found. Entering nested default context."* ]]
-  [[ "$output" == *"FAKE_SHELL CMD=$TEST_SHELL SHELL_CONTEXT= START= FINAL= PREVIOUS=current"* ]]
-  [[ "$output" == *"FAKE_INIT SHELL_CONTEXT= TITLE= PREVIOUS= TEST_FLAG="* ]]
+  [[ "$output" == *"FAKE_SHELL CMD=$TEST_SHELL SHELL_CONTEXT= START= FINAL= PREVIOUS=current DEPTH=2"* ]]
+  [[ "$output" == *"FAKE_INIT SHELL_CONTEXT= TITLE= PREVIOUS= DEPTH=2 TEST_FLAG="* ]]
   [[ "$output" == *"PARENT_FLAG=original"* ]]
   [ "$(cat "$cleanup_marker")" = "cleaned" ]
 }
@@ -249,5 +285,5 @@ EOF
 
   [ "$status" -eq 0 ]
   [[ "$output" == *"Entering context 'demo'..."* ]]
-  [[ "$output" == *"FAKE_SHELL CMD=$TEST_SHELL SHELL_CONTEXT=demo START=$HOME/.config/shell-context/contexts/demo.context-start FINAL="* ]]
+  [[ "$output" == *"FAKE_SHELL CMD=$TEST_SHELL SHELL_CONTEXT=demo START=$HOME/.config/shell-context/contexts/demo.context-start FINAL= PREVIOUS= DEPTH=1"* ]]
 }
