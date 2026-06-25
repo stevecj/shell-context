@@ -105,6 +105,39 @@ function _shell_context_confirm() {
   esac
 }
 
+function _shell_context_source_context_cleanup() {
+  local context_name=$1
+  local context_cleanup_file=
+
+  if [[ -n "$context_name" ]]; then
+    context_cleanup_file=$HOME/.config/shell-context/contexts/"$context_name".context-cleanup
+    if [[ -f $context_cleanup_file ]]; then
+      . "$context_cleanup_file" || return 1
+    elif [[ -f "$HOME/.config/shell-context/contexts/_default.context-cleanup" ]]; then
+      . "$HOME/.config/shell-context/contexts/_default.context-cleanup" || return 1
+    fi
+  fi
+}
+
+function _shell_context_launch_shell() {
+  local context_name=$1
+  local context_start_file=$2
+  local context_finalize_file=$3
+  local replace_current_shell=$4
+  local previous_context_name=$5
+  local current_shell
+
+  current_shell=$(_shell_context_current_shell) || return 1
+
+  if [[ $replace_current_shell == 1 ]]; then
+    SHELL_CONTEXT="$context_name" SHELL_CONTEXT_START_FILE="$context_start_file" SHELL_CONTEXT_FINALIZE_FILE="$context_finalize_file" SHELL_CONTEXT_PREVIOUS_CONTEXT="$previous_context_name" \
+      exec "$current_shell"
+  else
+    SHELL_CONTEXT="$context_name" SHELL_CONTEXT_START_FILE="$context_start_file" SHELL_CONTEXT_FINALIZE_FILE="$context_finalize_file" SHELL_CONTEXT_PREVIOUS_CONTEXT="$previous_context_name" \
+      "$current_shell"
+  fi
+}
+
 function _shell_context_init_usage() {
   cat <<'EOF'
 Usage: shell-context init-start
@@ -131,6 +164,11 @@ function _shell_context_init_start() {
 
   if [[ -z $SHELL_CONTEXT_PRE_PATH ]]; then
     export SHELL_CONTEXT_PRE_PATH=$PATH
+  fi
+
+  if [[ -n "$SHELL_CONTEXT_PREVIOUS_CONTEXT" ]]; then
+    _shell_context_source_context_cleanup "$SHELL_CONTEXT_PREVIOUS_CONTEXT" || return 1
+    unset SHELL_CONTEXT_PREVIOUS_CONTEXT
   fi
 
   export SHELL_CONTEXT_TITLE=
@@ -254,10 +292,11 @@ Use the context with the given name. This will open a new bash or zsh
 session matching the current shell, with the environment variables set
 according to the context.
 
-When switching from one context to another, Shell Context sources the
-current context's .context-cleanup file first if one exists. If the
-current context does not have a .context-cleanup file, then
-_default.context-cleanup will be sourced instead if it exists.
+When switching from one context to another, the new shell session runs
+the previous context's .context-cleanup file during initialization if
+one exists. If the previous context does not have a .context-cleanup
+file, then _default.context-cleanup will be sourced instead if it
+exists.
 
 Limitations:
 - Context switching does not exit the current subshell or invoke a
@@ -304,27 +343,29 @@ function _shell_context_load() {
     context_finalize_file=
   fi
 
-  local current_shell
-  current_shell=$(_shell_context_current_shell) || return 1
-
-  local current_context_cleanup_file=
+  local replace_current_shell=
+  local previous_context_name=
   if [[ -n "$SHELL_CONTEXT" ]]; then
-    current_context_cleanup_file=$HOME/.config/shell-context/contexts/"$SHELL_CONTEXT".context-cleanup
-    if [[ -f $current_context_cleanup_file ]]; then
-      . "$current_context_cleanup_file" || return 1
-    elif [[ -f "$HOME/.config/shell-context/contexts/_default.context-cleanup" ]]; then
-      . "$HOME/.config/shell-context/contexts/_default.context-cleanup" || return 1
-    fi
+    replace_current_shell=1
+    previous_context_name=$SHELL_CONTEXT
   fi
 
   echo "Entering context '$context_name'..."
+  _shell_context_launch_shell \
+    "$context_name" \
+    "$context_start_file" \
+    "$context_finalize_file" \
+    "$replace_current_shell" \
+    "$previous_context_name"
+}
+
+function _shell_context_load_default() {
+  local previous_context_name=
   if [[ -n "$SHELL_CONTEXT" ]]; then
-    SHELL_CONTEXT="$context_name" SHELL_CONTEXT_START_FILE="$context_start_file" SHELL_CONTEXT_FINALIZE_FILE="$context_finalize_file" \
-      exec "$current_shell"
-  else
-    SHELL_CONTEXT="$context_name" SHELL_CONTEXT_START_FILE="$context_start_file" SHELL_CONTEXT_FINALIZE_FILE="$context_finalize_file" \
-      "$current_shell"
+    previous_context_name=$SHELL_CONTEXT
   fi
+
+  _shell_context_launch_shell "" "" "" "" "$previous_context_name"
 }
 
 function _shell_context_unload_usage() {
@@ -380,13 +421,12 @@ Usage: shell-context load-local -h
 
 By default, loads the context specified by a .shell-context file
 in the current working directory or any of its ancestors (in the
-current logical path) or unloads any currently loaded context if no
-.shell-context file is found. See the help for shell-context load for
-more details about loading contexts.
+current logical path. If no .shell-context file is found while a named
+context is currently loaded, then a nested default context will be
+loaded instead. See the help for shell-context load for more details
+about loading contexts.
 
 Options:
-  -y  Don't prompt for confirmation before switching contexts or
-      unloading the current context.
   -l  Look for a .shell-context file in the logical path of the
       current working directory, following any symlinks.
       This is the default behavior if neither -l nor -p is specified
@@ -394,6 +434,7 @@ Options:
   -p  Look for a .shell-context file in the physical path of the
       current working directory, dereferencing any symlinks.
   -q  Be less verbose.
+  -y  Accepted for compatibility; currently has no effect.
   -h  Show this usage output and exit.
 
 Environment variables:
@@ -407,7 +448,6 @@ EOF
 
 function _shell_context_load_local() {
   local OPTIND=1 opt OPTARG
-  local prompt_for_conf=1
   local path_search_mode=${SHELL_CONTEXT_PATH_SEARCH_MODE:-logical}
   local be_less_verbose
   while getopts ":lpqyh" opt; do
@@ -415,7 +455,7 @@ function _shell_context_load_local() {
       l) path_search_mode=logical ;;
       p) path_search_mode=physical ;;
       q) be_less_verbose=1 ;;
-      y) prompt_for_conf= ;;
+      y) ;;
       h) _shell_context_load_local_usage; return 0 ;;
       \?) echo "Invalid option: -$OPTARG" >&2; return 1 ;;
     esac
@@ -453,13 +493,10 @@ function _shell_context_load_local() {
     _shell_context_load "$context_name"
   else
     if [[ -n "$SHELL_CONTEXT" ]]; then
-      if [[ $prompt_for_conf == 1 ]]; then
-        if ! _shell_context_confirm "No .shell-context file found. Unload current context '$SHELL_CONTEXT'? [Y/n] "; then
-          echo "Aborting context unload." >&2
-          return 1
-        fi
+      if [[ $be_less_verbose != 1 ]]; then
+        echo "No .shell-context file found. Entering nested default context." >&2
       fi
-      _shell_context_unload -y ${be_less_verbose:+-q}
+      _shell_context_load_default
     else
       if [[ $be_less_verbose != 1 ]]; then
         echo "No .shell-context file found and no context currently loaded." >&2
@@ -501,7 +538,7 @@ function _shell_context_auto_local() {
   if [[ "$SHELL_CONTEXT_PREV_DIR" != "$(pwd)" ]]; then
     # Intentionally not exported.
     SHELL_CONTEXT_PREV_DIR=$(pwd)
-    shell-context load-local -q -y
+    shell-context load-local -q
   fi
   :
 }

@@ -82,11 +82,13 @@ shell-context load-local
 ```
 
 That command searches the current directory and its ancestors for the
-nearest `.shell-context` file and switches to the named context. If you
-use Git, add `.shell-context` to your global ignore file so that
-project-local selections do not get committed accidentally.  See the
-help (using the `-h` option) for `shell-context load-local` for more
-usage details.
+nearest `.shell-context` file and loads the named context. If no local
+context file applies while you are already in a named context, Shell
+Context opens a nested default-context shell instead of unloading the
+current shell session. If you use Git, add `.shell-context` to your
+global ignore file so that project-local selections do not get
+committed accidentally. See the help (using the `-h` option) for
+`shell-context load-local` for more usage details.
 
 
 ## Installation and Configuration
@@ -181,8 +183,9 @@ run after the rest of the shell startup has finished, such as commands
 that depend on tools or functions initialized elsewhere in your shell
 configuration.
 
-The `\*.context-cleanup` file runs before switching from one context to
-another. If your context modifies `PATH`, restore it from
+The `\*.context-cleanup` file runs in the newly started shell while it
+is initializing after switching away from a context. If your context
+modifies `PATH`, restore it from
 `SHELL\_CONTEXT\_PRE\_PATH` in that cleanup file before applying the next
 context's changes. If no cleanup file is defined for a context, then
 `PATH` will be resored from `SHELL\_CONTEXT\_PRE\_PATH` automatically.
