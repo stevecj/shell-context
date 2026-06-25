@@ -135,24 +135,16 @@ This split is intentional:
   context-specific setup that depends on tools initialized later in the
   startup sequence
 
-Optionally, before sourcing the library, set and export
-`SHELL\_CONTEXT\_AUTO` and/or `SHELL\_CONTEXT\_PATH\_SEARCH\_MODE` to
-customize the behavior of Shell Context.
-
-Set `SHELL\_CONTEXT\_AUTO` to `1` to have Shell Context automatically
-load or switch contexts when you `cd` into a directory. See the help
-for `shell-context load-local` for more details. This is implemented by
-installing the `shell_context_auto_local` shell hook function during
-`shell-context init-finalize`.
-
-Set `SHELL\_CONTEXT\_PATH\_SEARCH\_MODE` to "physical" to have Shell
-Context search the physical path (with symlinks resolved) instead of
-the logical path when searching for `.shell-context` files.  See the
-help for `shell-context load-local` for more details.
-
-Note that as of this writing, those variables may actually be set at
-any point prior to calling `shell-context init-cefinalizestart`, but
-that may change in the future.
+Optionally, before sourcing the library, set and export...
+* `SHELL\_CONTEXT\_AUTO` and/or `SHELL\_CONTEXT\_PATH\_SEARCH\_MODE` to
+  customize the behavior of Shell Context.
+* `SHELL\_CONTEXT\_AUTO` to a positive integer to enable automatic
+ 'local-context loading when you `cd` into a directory and to specify
+ its maximum depth of context nesting.
+* `SHELL\_CONTEXT\_PATH\_SEARCH\_MODE` to "physical" to have Shell
+ Context search the physical path (with symlinks resolved) instead of
+ the logical path when searching for `.shell-context` files.  See the
+ help for `shell-context load-local` for more details.
 
 Next, create the configuration directory:
 

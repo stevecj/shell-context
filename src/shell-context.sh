@@ -107,6 +107,20 @@ function _shell_context_current_depth() {
   return 1
 }
 
+function _shell_context_auto_limit() {
+  if [[ -z ${SHELL_CONTEXT_AUTO+x} || -z "$SHELL_CONTEXT_AUTO" ]]; then
+    return 0
+  fi
+
+  if [[ "$SHELL_CONTEXT_AUTO" =~ ^[0-9]+$ ]]; then
+    printf '%s\n' "$SHELL_CONTEXT_AUTO"
+    return 0
+  fi
+
+  echo "SHELL_CONTEXT_AUTO must be a non-negative integer, got '$SHELL_CONTEXT_AUTO'." >&2
+  return 1
+}
+
 function _shell_context_confirm() {
   local prompt=$1 reply
   printf '%s' "$prompt" >&2
@@ -225,15 +239,19 @@ Environment variables:
     The path to the context-finalize file for the current context, i
     any.
   SHELL_CONTEXT_AUTO
-    If set to "1", then the shell_context_auto_local function will be
-    called as a prompt hook, so that the context will automatically
-    switch if applicable when the current working directory changes.
+    If set to a non-negative integer, then values 1 and larger install
+    the shell_context_auto_local prompt hook. That value also limits
+    how deep automatic nesting may go: if SHELL_CONTEXT_DEPTH is the
+    same as or greater than SHELL_CONTEXT_AUTO, auto-local will do
+    nothing. Values 0, blank, or unset disable automatic hook
+    installation.
 EOF
   :
 }
 
 function _shell_context_init_finalize() {
   local OPTIND=1 opt OPTARG
+  local auto_limit
   while getopts ":h" opt; do
     case $opt in
       h) _shell_context_finalize_usage; return 0 ;;
@@ -247,7 +265,8 @@ function _shell_context_init_finalize() {
     . "$HOME/.config/shell-context/contexts/_default.context-finalize"
   fi
 
-  if [[ "$SHELL_CONTEXT_AUTO" == "1" ]]; then
+  auto_limit=$(_shell_context_auto_limit) || return 1
+  if [[ -n "$auto_limit" && "$auto_limit" -ge 1 ]]; then
     local current_shell
     current_shell=$(_shell_context_current_shell) || return 1
     if [[ $current_shell == "bash" ]]; then
@@ -571,6 +590,11 @@ Automatically load the context specified by a .shell-context file in
 the current working directory or any of its ancestors if the current
 directory has changed since the last time this was checked.
 
+If SHELL_CONTEXT_AUTO is set to a positive integer, that value limits
+how deeply this command/function will automatically nest contexts.
+When SHELL_CONTEXT_DEPTH is the same as or greater than the configured
+limit, it will do nothing.
+
 Options:
   -h  Show this usage output and exit.
 EOF
@@ -578,12 +602,23 @@ EOF
 }
 
 function shell_context_auto_local() {
+  local auto_limit current_depth
+
   while getopts ":h" opt; do
     case $opt in
       h) _shell_context_auto_local_usage; return 0 ;;
       \?) echo "Invalid option: -$OPTARG" >&2; return 1 ;;
     esac
   done
+
+  auto_limit=$(_shell_context_auto_limit) || return 1
+  if [[ -n "$auto_limit" && "$auto_limit" -ge 1 ]]; then
+    current_depth=$(_shell_context_current_depth) || return 1
+    if (( current_depth >= auto_limit )); then
+      echo "Shell Context: Not auto-loading context beyond depth limit of $auto_limit." >&2
+      return 0
+    fi
+  fi
 
   if [[ -z $SHELL_CONTEXT_PREV_DIR ]]; then
     # Intentionally not exported.

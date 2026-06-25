@@ -109,10 +109,18 @@ EOF
 
 @test "init-finalize wires the public auto-local hook function" {
   run_in_test_shell \
-    'source "$1"; SHELL_CONTEXT_AUTO=1; shell-context init-finalize; if [[ -n ${BASH_VERSION-} ]]; then printf "%s" "$PROMPT_COMMAND"; else printf "%s" "${precmd_functions[*]-}"; fi' "$SCRIPT_PATH"
+    'source "$1"; SHELL_CONTEXT_AUTO=2; shell-context init-finalize; if [[ -n ${BASH_VERSION-} ]]; then printf "%s" "$PROMPT_COMMAND"; else printf "%s" "${precmd_functions[*]-}"; fi' "$SCRIPT_PATH"
 
   [ "$status" -eq 0 ]
   [[ "$output" == *"shell_context_auto_local"* ]]
+}
+
+@test "init-finalize does not wire the auto-local hook when SHELL_CONTEXT_AUTO is zero" {
+  run_in_test_shell \
+    'source "$1"; SHELL_CONTEXT_AUTO=0; shell-context init-finalize; if [[ -n ${BASH_VERSION-} ]]; then printf "%s" "${PROMPT_COMMAND-}"; else printf "%s" "${precmd_functions[*]-}"; fi' "$SCRIPT_PATH"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"shell_context_auto_local"* ]]
 }
 
 @test "subcommand help is still available when Shell Context is disabled" {
@@ -310,4 +318,32 @@ EOF
   [ "$status" -eq 0 ]
   [[ "$output" == *"Entering context 'demo'..."* ]]
   [[ "$output" == *"FAKE_SHELL CMD=$TEST_SHELL SHELL_CONTEXT=demo START=$HOME/.config/shell-context/contexts/demo.context-start FINAL= PREVIOUS= DEPTH=1"* ]]
+}
+
+@test "shell_context_auto_local short-circuits when the auto nesting limit is reached" {
+  install_fake_shell
+  mkdir -p "$HOME/.config/shell-context/contexts" "$BATS_TEST_TMPDIR/project"
+  printf 'demo\n' >"$BATS_TEST_TMPDIR/project/.shell-context"
+  : >"$HOME/.config/shell-context/contexts/demo.context-start"
+
+  run_in_test_shell \
+    'export HOME="$1"; export PATH="$3:$PATH"; export SHELL_CONTEXT_AUTO=1; export SHELL_CONTEXT_DEPTH=1; export SHELL_CONTEXT_PREV_DIR="$4/elsewhere"; source "$2"; cd "$4/project"; shell_context_auto_local 2>&1' "$HOME" "$SCRIPT_PATH" "$FAKE_BIN" "$BATS_TEST_TMPDIR"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"FAKE_SHELL CMD="* ]]
+  [[ "$output" != *"Entering context"* ]]
+}
+
+@test "shell_context_auto_local loads a context when below the auto nesting limit" {
+  install_fake_shell
+  mkdir -p "$HOME/.config/shell-context/contexts" "$BATS_TEST_TMPDIR/project"
+  printf 'demo\n' >"$BATS_TEST_TMPDIR/project/.shell-context"
+  : >"$HOME/.config/shell-context/contexts/demo.context-start"
+
+  run_in_test_shell \
+    'export HOME="$1"; export PATH="$3:$PATH"; export SHELL_CONTEXT_AUTO=2; export SHELL_CONTEXT_DEPTH=1; export SHELL_CONTEXT_PREV_DIR="$4/elsewhere"; source "$2"; cd "$4/project"; shell_context_auto_local 2>&1' "$HOME" "$SCRIPT_PATH" "$FAKE_BIN" "$BATS_TEST_TMPDIR"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Entering context 'demo'..."* ]]
+  [[ "$output" == *"FAKE_SHELL CMD=$TEST_SHELL SHELL_CONTEXT=demo START=$HOME/.config/shell-context/contexts/demo.context-start FINAL= PREVIOUS= DEPTH=2"* ]]
 }
