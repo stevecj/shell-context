@@ -519,21 +519,8 @@ EOF
   :
 }
 
-function _shell_context_load_local() {
-  local OPTIND=1 opt OPTARG
-  local path_search_mode=${SHELL_CONTEXT_PATH_SEARCH_MODE:-logical}
-  local be_less_verbose
-  while getopts ":lpqyh" opt; do
-    case $opt in
-      l) path_search_mode=logical ;;
-      p) path_search_mode=physical ;;
-      q) be_less_verbose=1 ;;
-      y) ;;
-      h) _shell_context_load_local_usage; return 0 ;;
-      \?) echo "Invalid option: -$OPTARG" >&2; return 1 ;;
-    esac
-  done
-
+function _shell_context_resolve_local_context() {
+  local path_search_mode=$1
   local search_path
   if [[ $path_search_mode == logical ]]; then
     search_path=$(pwd -P)
@@ -558,25 +545,71 @@ function _shell_context_load_local() {
       return 1
     fi
     if [[ "$context_name" == "$SHELL_CONTEXT" ]]; then
-      if [[ $be_less_verbose != 1 ]]; then
-        echo "Already in context '$context_name'." >&2
-      fi
+      printf 'already-active\t%s\n' "$context_name"
       return 0
     fi
-    _shell_context_load "$context_name"
+    printf 'load-context\t%s\n' "$context_name"
   else
     if [[ -n "$SHELL_CONTEXT" ]]; then
+      printf '%s\n' 'load-default'
+    else
+      printf '%s\n' 'noop'
+    fi
+  fi
+}
+
+function _shell_context_apply_local_context_resolution() {
+  local resolution=$1
+  local be_less_verbose=$2
+  local action context_name
+
+  IFS=$'\t' read -r action context_name <<<"$resolution"
+  case $action in
+    load-context)
+      _shell_context_load "$context_name"
+      ;;
+    load-default)
       if [[ $be_less_verbose != 1 ]]; then
         echo "No .shell-context file found. Entering nested default context." >&2
       fi
       _shell_context_load_default
-    else
+      ;;
+    already-active)
+      if [[ $be_less_verbose != 1 ]]; then
+        echo "Already in context '$context_name'." >&2
+      fi
+      return 0
+      ;;
+    noop)
       if [[ $be_less_verbose != 1 ]]; then
         echo "No .shell-context file found and no context currently loaded." >&2
       fi
       return 0
-    fi
-  fi
+      ;;
+    *)
+      echo "Unexpected local context resolution: $resolution" >&2
+      return 1
+      ;;
+  esac
+}
+
+function _shell_context_load_local() {
+  local OPTIND=1 opt OPTARG
+  local path_search_mode=${SHELL_CONTEXT_PATH_SEARCH_MODE:-logical}
+  local be_less_verbose resolution
+  while getopts ":lpqyh" opt; do
+    case $opt in
+      l) path_search_mode=logical ;;
+      p) path_search_mode=physical ;;
+      q) be_less_verbose=1 ;;
+      y) ;;
+      h) _shell_context_load_local_usage; return 0 ;;
+      \?) echo "Invalid option: -$OPTARG" >&2; return 1 ;;
+    esac
+  done
+
+  resolution=$(_shell_context_resolve_local_context "$path_search_mode") || return 1
+  _shell_context_apply_local_context_resolution "$resolution" "$be_less_verbose"
 }
 
 function _shell_context_auto_local_usage() {
@@ -592,8 +625,8 @@ directory has changed since the last time this was checked.
 
 If SHELL_CONTEXT_AUTO is set to a positive integer, that value limits
 how deeply this command/function will automatically nest contexts.
-When SHELL_CONTEXT_DEPTH is the same as or greater than the configured
-limit, it will do nothing.
+When a context change would otherwise occur, and SHELL_CONTEXT_DEPTH is
+the same as or greater than the configured limit, it will do nothing.
 
 Options:
   -h  Show this usage output and exit.
@@ -602,8 +635,7 @@ EOF
 }
 
 function shell_context_auto_local() {
-  local auto_limit current_depth
-
+  local auto_limit current_depth resolution action target_context_name
   while getopts ":h" opt; do
     case $opt in
       h) _shell_context_auto_local_usage; return 0 ;;
@@ -612,13 +644,6 @@ function shell_context_auto_local() {
   done
 
   auto_limit=$(_shell_context_auto_limit) || return 1
-  if [[ -n "$auto_limit" && "$auto_limit" -ge 1 ]]; then
-    current_depth=$(_shell_context_current_depth) || return 1
-    if (( current_depth >= auto_limit )); then
-      echo "Shell Context: Not auto-loading context beyond depth limit of $auto_limit." >&2
-      return 0
-    fi
-  fi
 
   if [[ -z $SHELL_CONTEXT_PREV_DIR ]]; then
     # Intentionally not exported.
@@ -629,7 +654,23 @@ function shell_context_auto_local() {
   if [[ "$SHELL_CONTEXT_PREV_DIR" != "$(pwd)" ]]; then
     # Intentionally not exported.
     SHELL_CONTEXT_PREV_DIR=$(pwd)
-    shell-context load-local -q
+    resolution=$(_shell_context_resolve_local_context "${SHELL_CONTEXT_PATH_SEARCH_MODE:-logical}") || return 1
+    IFS=$'\t' read -r action target_context_name <<<"$resolution"
+    if [[ -n "$auto_limit" && "$auto_limit" -ge 1 ]]; then
+      current_depth=$(_shell_context_current_depth) || return 1
+      if (( current_depth >= auto_limit )); then
+        case $action in
+          load-context)
+            echo "Shell Context: Not auto-loading context '$target_context_name' beyond depth limit of $auto_limit." >&2
+            ;;
+          load-default)
+            echo "Shell Context: Not auto-loading context '(default)' beyond depth limit of $auto_limit." >&2
+            ;;
+        esac
+        return 0
+      fi
+    fi
+    _shell_context_apply_local_context_resolution "$resolution" 1
   fi
   :
 }

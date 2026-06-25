@@ -320,7 +320,7 @@ EOF
   [[ "$output" == *"FAKE_SHELL CMD=$TEST_SHELL SHELL_CONTEXT=demo START=$HOME/.config/shell-context/contexts/demo.context-start FINAL= PREVIOUS= DEPTH=1"* ]]
 }
 
-@test "shell_context_auto_local short-circuits when the auto nesting limit is reached" {
+@test "shell_context_auto_local reports the auto nesting limit when it blocks a context change" {
   install_fake_shell
   mkdir -p "$HOME/.config/shell-context/contexts" "$BATS_TEST_TMPDIR/project"
   printf 'demo\n' >"$BATS_TEST_TMPDIR/project/.shell-context"
@@ -330,8 +330,36 @@ EOF
     'export HOME="$1"; export PATH="$3:$PATH"; export SHELL_CONTEXT_AUTO=1; export SHELL_CONTEXT_DEPTH=1; export SHELL_CONTEXT_PREV_DIR="$4/elsewhere"; source "$2"; cd "$4/project"; shell_context_auto_local 2>&1' "$HOME" "$SCRIPT_PATH" "$FAKE_BIN" "$BATS_TEST_TMPDIR"
 
   [ "$status" -eq 0 ]
+  [[ "$output" == *"Shell Context: Not auto-loading context 'demo' beyond depth limit of 1."* ]]
   [[ "$output" != *"FAKE_SHELL CMD="* ]]
   [[ "$output" != *"Entering context"* ]]
+}
+
+@test "shell_context_auto_local reports the default context name when it blocks a nested default context" {
+  run_in_test_shell \
+    'export HOME="$1"; export SHELL_CONTEXT=current; export SHELL_CONTEXT_AUTO=1; export SHELL_CONTEXT_DEPTH=1; export SHELL_CONTEXT_PREV_DIR="$3/elsewhere"; source "$2"; mkdir -p "$3/project"; cd "$3/project"; shell_context_auto_local 2>&1' "$HOME" "$SCRIPT_PATH" "$BATS_TEST_TMPDIR"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Shell Context: Not auto-loading context '(default)' beyond depth limit of 1."* ]]
+}
+
+@test "shell_context_auto_local does not report the auto nesting limit when no local context applies" {
+  run_in_test_shell \
+    'export HOME="$1"; export SHELL_CONTEXT_AUTO=1; export SHELL_CONTEXT_DEPTH=1; export SHELL_CONTEXT_PREV_DIR="$3/elsewhere"; source "$2"; mkdir -p "$3/project"; cd "$3/project"; shell_context_auto_local 2>&1' "$HOME" "$SCRIPT_PATH" "$BATS_TEST_TMPDIR"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"Shell Context: Not auto-loading context"* ]]
+}
+
+@test "shell_context_auto_local does not report the auto nesting limit when the requested context is already active" {
+  mkdir -p "$BATS_TEST_TMPDIR/project"
+  printf 'demo\n' >"$BATS_TEST_TMPDIR/project/.shell-context"
+
+  run_in_test_shell \
+    'export HOME="$1"; export SHELL_CONTEXT=demo; export SHELL_CONTEXT_AUTO=1; export SHELL_CONTEXT_DEPTH=1; export SHELL_CONTEXT_PREV_DIR="$3/elsewhere"; source "$2"; cd "$3/project"; shell_context_auto_local 2>&1' "$HOME" "$SCRIPT_PATH" "$BATS_TEST_TMPDIR"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"Shell Context: Not auto-loading context"* ]]
 }
 
 @test "shell_context_auto_local loads a context when below the auto nesting limit" {
