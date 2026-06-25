@@ -141,7 +141,9 @@ customize the behavior of Shell Context.
 
 Set `SHELL\_CONTEXT\_AUTO` to `1` to have Shell Context automatically
 load or switch contexts when you `cd` into a directory. See the help
-for `shell-context load-local` for more details.
+for `shell-context load-local` for more details. This is implemented by
+installing the `shell_context_auto_local` shell hook function during
+`shell-context init-finalize`.
 
 Set `SHELL\_CONTEXT\_PATH\_SEARCH\_MODE` to "physical" to have Shell
 Context search the physical path (with symlinks resolved) instead of

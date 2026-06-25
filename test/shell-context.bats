@@ -91,6 +91,30 @@ EOF
   [[ "$output" == *"~/.zshrc"* ]]
 }
 
+@test "auto-local help is available via both the subcommand and the direct hook function" {
+  run_in_test_shell \
+    'source "$1"; shell-context auto-local -h' "$SCRIPT_PATH"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Usage: shell-context auto-local"* ]]
+  [[ "$output" == *"Usage: shell_context_auto_local"* ]]
+
+  run_in_test_shell \
+    'source "$1"; shell_context_auto_local -h' "$SCRIPT_PATH"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Usage: shell-context auto-local"* ]]
+  [[ "$output" == *"Usage: shell_context_auto_local"* ]]
+}
+
+@test "init-finalize wires the public auto-local hook function" {
+  run_in_test_shell \
+    'source "$1"; SHELL_CONTEXT_AUTO=1; shell-context init-finalize; if [[ -n ${BASH_VERSION-} ]]; then printf "%s" "$PROMPT_COMMAND"; else printf "%s" "${precmd_functions[*]-}"; fi' "$SCRIPT_PATH"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"shell_context_auto_local"* ]]
+}
+
 @test "subcommand help is still available when Shell Context is disabled" {
   mkdir -p "$HOME/.config/shell-context"
   : >"$HOME/.config/shell-context/DISABLED"

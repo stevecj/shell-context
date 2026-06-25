@@ -60,7 +60,7 @@ function shell-context() {
     load)          _shell_context_load "$@" ;;
     unload)        _shell_context_unload "$@" ;;
     load-local)    _shell_context_load_local "$@" ;;
-    auto-local)    _shell_context_auto_local "$@" ;;
+    auto-local)    shell_context_auto_local "$@" ;;
     ""|-h|--help)  _shell_context_usage ;;
     *)
       echo "Unknown subcommand: $subcommand" >&2
@@ -225,9 +225,9 @@ Environment variables:
     The path to the context-finalize file for the current context, i
     any.
   SHELL_CONTEXT_AUTO
-    If set to "1", then the auto-local subcommand will be called as a
-    prompt command, so that the context will automatically switch if
-    applicable when the current working directory changes.
+    If set to "1", then the shell_context_auto_local function will be
+    called as a prompt hook, so that the context will automatically
+    switch if applicable when the current working directory changes.
 EOF
   :
 }
@@ -252,13 +252,13 @@ function _shell_context_init_finalize() {
     current_shell=$(_shell_context_current_shell) || return 1
     if [[ $current_shell == "bash" ]]; then
       if [[ -n "$PROMPT_COMMAND" ]]; then
-	PROMPT_COMMAND="shell-context auto-local; $PROMPT_COMMAND"
+	PROMPT_COMMAND="shell_context_auto_local; $PROMPT_COMMAND"
       else
-	PROMPT_COMMAND="shell-context auto-local"
+	PROMPT_COMMAND="shell_context_auto_local"
       fi
     elif [[ $current_shell == "zsh" ]]; then
       autoload -U add-zsh-hook
-      add-zsh-hook precmd _shell_context_auto_local
+      add-zsh-hook precmd shell_context_auto_local
     fi
   fi
 }
@@ -291,6 +291,11 @@ Arguments:
   default_value:
     A default value to use in place of SHELL_CONTEXT_TITLE if not set,
     meaning no context is loaded.
+
+Tip:
+  You may want to define a function in your shell startup file to call
+  this subcommand with your preferred options, and then call that
+  function in your PS1/PROMPT assignment
 EOF
   :
 }
@@ -559,6 +564,8 @@ function _shell_context_auto_local_usage() {
   cat <<'EOF'
 Usage: shell-context auto-local
 Usage: shell-context auto-local -h
+Usage: shell_context_auto_local
+Usage: shell_context_auto_local -h
 
 Automatically load the context specified by a .shell-context file in
 the current working directory or any of its ancestors if the current
@@ -570,7 +577,7 @@ EOF
   :
 }
 
-function _shell_context_auto_local() {
+function shell_context_auto_local() {
   while getopts ":h" opt; do
     case $opt in
       h) _shell_context_auto_local_usage; return 0 ;;
