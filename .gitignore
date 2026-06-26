@@ -1,3 +1,9 @@
+
+# Guidance files for GitHub Copilot.
+/.github
+
+# ====================
+
 # Created by https://www.toptal.com/developers/gitignore/api/vim,emacs,visualstudiocode,jetbrains
 # Edit at https://www.toptal.com/developers/gitignore?templates=vim,emacs,visualstudiocode,jetbrains
 
