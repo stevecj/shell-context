@@ -66,7 +66,7 @@ to create a context named `work`, create the file
 `~/.config/shell-context/contexts/work.context-start` and add the
 environment changes needed for that context. If you want the prompt to
 display a label different from the context name, then also set
-`SHELL\_CONTEXT\_TITLE` there.
+`SHELL_CONTEXT_TITLE` there.
 
 For each context, you may also create a `\*.context-finalize` file for
 context-specific setup that should run after the rest of the shell startup
@@ -81,7 +81,7 @@ specific command.
 If there is cleanup that needs to be performed when switching from one
 context to another, create a `\*.context-cleanup` file for that context.
 If no cleanup file is defined for a context, then `PATH` will be
-restored from `SHELL\_CONTEXT\_PRE\_PATH` as the default cleanup behavior.
+restored from `SHELL_CONTEXT_PRE_PATH` as the default cleanup behavior.
 
 Load a context with:
 
@@ -138,7 +138,7 @@ ln -s ~/.local/lib/shell-context/src/shell-context.sh ~/.local/lib/shell-context
 Then update your shell startup file:
 
 * Bash interactive shells commonly use `~/.bashrc`
-* Login shells may use `~/.bash\_profile`
+* Login shells may use `~/.bash_profile`
 * Zsh commonly uses `~/.zshrc`
 
 Source the library near the beginning of the file, call
@@ -168,12 +168,12 @@ This split is intentional:
 Optionally, before sourcing the library, export any of the following
 environment variables:
 
-* `SHELL\_CONTEXT\_AUTO` and/or `SHELL\_CONTEXT\_PATH\_SEARCH\_MODE` to
+* `SHELL_CONTEXT_AUTO` and/or `SHELL_CONTEXT_PATH_SEARCH_MODE` to
    customize Shell Context's behaviors.
-* `SHELL\_CONTEXT\_AUTO` to a positive integer to enable automatic
+* `SHELL_CONTEXT_AUTO` to a positive integer to enable automatic
   loading of the local-context when you `cd` into a directory and to
   specify the maximum depth for auto-loading.
-* `SHELL\_CONTEXT\_PATH\_SEARCH\_MODE` to "physical" to have Shell
+* `SHELL_CONTEXT_PATH_SEARCH_MODE` to "physical" to have Shell
   Context search the physical path (with symlinks resolved) instead of
   the logical path when searching for `.shell-context` files. See the
   help for `shell-context load-local` for more details.
@@ -196,21 +196,21 @@ context named `work`, the supported files are:
 * `work.context-finalize` (optional)
 * `work.context-cleanup` (optional)
 
-You may also define `\_default.context-start`,
-`\_default.context-finalize`, and/or `\_default.context-cleanup` files to
+You may also define `_default.context-start`,
+`_default.context-finalize`, and/or `_default.context-cleanup` files to
 apply when no named context is active or when a context does not supply
 its own cleanup behavior.
 
 The `\*.context-start` file should contain the environment changes needed
 for that context. If you want the prompt to display a label different
-from the context name, then also set `SHELL\_CONTEXT\_TITLE` there.
+from the context name, then also set `SHELL_CONTEXT_TITLE` there.
 
 The `\*.context-finalize` file is for context-specific setup that should
 run after the rest of the shell startup has finished, such as commands
 that depend on tools or functions initialized elsewhere in your shell
 configuration.
 
-Shell Context also exports `SHELL\_CONTEXT\_DEPTH` so nested context
+Shell Context also exports `SHELL_CONTEXT_DEPTH` so nested context
 shells can detect how deeply nested they are. A shell with no loaded
 context initializes it to `0`, the first loaded context runs at depth
 `1`, and each additional nested context shell increments it by `1`.
@@ -218,9 +218,9 @@ context initializes it to `0`, the first loaded context runs at depth
 The `\*.context-cleanup` file runs in the newly started shell while it
 is initializing after switching away from a context. If your context
 modifies `PATH`, restore it from
-`SHELL\_CONTEXT\_PRE\_PATH` in that cleanup file before applying the next
+`SHELL_CONTEXT_PRE_PATH` in that cleanup file before applying the next
 context's changes. If no cleanup file is defined for a context, then
-`PATH` will be restored from `SHELL\_CONTEXT\_PRE\_PATH` automatically.
+`PATH` will be restored from `SHELL_CONTEXT_PRE_PATH` automatically.
 
 For example:
 
@@ -246,7 +246,7 @@ PS1='$(shell-context prompt-title -n "[%s] ")'"$PS1"
 ```
 
 By default, `prompt-title` appends the current context depth when
-`SHELL\_CONTEXT\_DEPTH` is 2 or greater, using the format ` (%s)`. Use
+`SHELL_CONTEXT_DEPTH` is 2 or greater, using the format ` (%s)`. Use
 `-d` to change that depth suffix format or `-D` to change the minimum
 depth at which it appears.
 
