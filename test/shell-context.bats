@@ -65,6 +65,23 @@ EOF
   [[ "$output" == *"Usage: shell-context <subcommand> [arguments]"* ]]
 }
 
+@test "version output is still available when Shell Context is disabled" {
+  mkdir -p "$HOME/.config/shell-context"
+  : >"$HOME/.config/shell-context/DISABLED"
+
+  run_in_test_shell \
+    'export HOME="$1"; source "$2"; shell-context -v' "$HOME" "$SCRIPT_PATH"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ ^[0-9][.][0-9][.][0-9]$ ]]
+
+  run_in_test_shell \
+    'export HOME="$1"; source "$2"; shell-context version' "$HOME" "$SCRIPT_PATH"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ ^[0-9][.][0-9][.][0-9]$ ]]
+}
+
 @test "unknown subcommands fail with usage output" {
   run_in_test_shell \
     'source "$1"; shell-context unknown 2>&1' "$SCRIPT_PATH"

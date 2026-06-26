@@ -8,9 +8,11 @@ function _shell_context_usage() {
   cat <<'EOF'
 Usage: shell-context <subcommand> [arguments]
 Usage: shell-context -h
+Usage: shell-context -v|version
 
 Options:
   -h  Show this usage output and exit.
+  -v  Show the version of Shell Context and exit.
 
 Subcommands:
   init-start      Initialize the Shell Context system.
@@ -21,6 +23,7 @@ Subcommands:
   load-local      Load  context named in nearest .shell-context file.
   auto-local      Load context from nearest .shell-context file on
                   directory change.
+  version         Show the version of Shell Context and exit.
 
 Run `shell-context <subcommand> -h` for subcommand-specific help.
 EOF
@@ -28,10 +31,12 @@ EOF
 }
 
 function shell-context() {
+  local version="1.0.0"
   local OPTIND=1 opt OPTARG
-  while getopts ":h" opt; do
+  while getopts ":vh" opt; do
     case $opt in
       h) _shell_context_usage; return 0 ;;
+      v) echo "$version"; return 0 ;;
       \?) echo "Invalid option: -$OPTARG" >&2; return 1 ;;
     esac
   done
@@ -39,6 +44,11 @@ function shell-context() {
 
   local subcommand=$1
   shift || true
+
+  if [[ $subcommand == "version" ]]; then
+    echo "$version"
+    return 0
+  fi
 
   if [[ -f "$HOME/.config/shell-context/DISABLED" ]]; then
     case "$subcommand" in
