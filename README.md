@@ -68,7 +68,7 @@ environment changes needed for that context. If you want the prompt to
 display a label different from the context name, then also set
 `SHELL_CONTEXT_TITLE` there.
 
-For each context, you may also create a `\*.context-finalize` file for
+For each context, you may also create a `*.context-finalize` file for
 context-specific setup that should run after the rest of the shell startup
 has finished, such as commands that depend on tools or functions (e.g.
 from `pyenv` or `nvm`) initialized elsewhere in your shell configuration.
@@ -79,7 +79,7 @@ available commands or `shell-context <command> -h` for details on a
 specific command.
 
 If there is cleanup that needs to be performed when switching from one
-context to another, create a `\*.context-cleanup` file for that context.
+context to another, create a `*.context-cleanup` file for that context.
 If no cleanup file is defined for a context, then `PATH` will be
 restored from `SHELL_CONTEXT_PRE_PATH` as the default cleanup behavior.
 
@@ -159,9 +159,9 @@ shell-context init-finalize
 This split is intentional:
 
 * `init-start` runs before the rest of your shell setup and loads the
-  active context's `\*.context-start` file
+  active context's `*.context-start` file
 * `init-finalize` runs after the rest of your startup and loads the
-  active context's `\*.context-finalize` file, which is useful for
+  active context's `*.context-finalize` file, which is useful for
   context-specific setup that depends on tools initialized later in the
   startup sequence
 
@@ -201,11 +201,11 @@ You may also define `_default.context-start`,
 apply when no named context is active or when a context does not supply
 its own cleanup behavior.
 
-The `\*.context-start` file should contain the environment changes needed
+The `*.context-start` file should contain the environment changes needed
 for that context. If you want the prompt to display a label different
 from the context name, then also set `SHELL_CONTEXT_TITLE` there.
 
-The `\*.context-finalize` file is for context-specific setup that should
+The `*.context-finalize` file is for context-specific setup that should
 run after the rest of the shell startup has finished, such as commands
 that depend on tools or functions initialized elsewhere in your shell
 configuration.
@@ -215,7 +215,7 @@ shells can detect how deeply nested they are. A shell with no loaded
 context initializes it to `0`, the first loaded context runs at depth
 `1`, and each additional nested context shell increments it by `1`.
 
-The `\*.context-cleanup` file runs in the newly started shell while it
+The `*.context-cleanup` file runs in the newly started shell while it
 is initializing after switching away from a context. If your context
 modifies `PATH`, restore it from
 `SHELL_CONTEXT_PRE_PATH` in that cleanup file before applying the next
