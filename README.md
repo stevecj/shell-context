@@ -8,23 +8,53 @@ A tool to load shell sessions configured for different projects.
 When you work on several projects that each need different working
 environments, Shell Context provides a simple way to manage that.
 
-This is inpired by other tools such as direnv, but strives for
-simplicity of implementation and fexibility in how it may be used
-at the expense of some conveniences and security measures, though
-Shell Context does have its own security advantages.
+This is inspired by other tools such as direnv and dotenv, but strives for
+simplicity of implementation and flexibility in how it may be used
+at the expense of some conveniences, prettiness, and security measures,
+though Shell Context has some security advantages of its own.
 
-In order to properly support situations in which the project's
-directory is available in 2 different environments such as a host
-system and a container of 2 different containers where the working
-environments should differ, the configuration instructions are stored
-outside of the directory that specifies the context name.
+To support having a project's directory available in 2 different
+environments, such as a host system and a container or 2 different
+containers, where different environments apply, the context
+configurations are stored in a central location, and not in the
+project directory that specifies a context to load.
 
 As a nice side effect of this design, the context configuration files
 cannot be accidentally committed to version control, possibly exposing
 secrets or causing conflicts between collaborators.
 
 Shell Context supports either bash or zsh shell types and no others at
-this time.
+this time. Make some noise or submit a pull request if you want to
+see support for other shells.
+
+
+## Shell Context vs direnv and dotenv
+
+Shell Context, [direnv](https://direnv.net/), and dotenv-style tools all
+help you work with project-specific shell environments, but they make
+different tradeoffs.
+
+Use Shell Context if you want named environments managed from a central
+location under `~/.config/shell-context/contexts/`, and if you prefer
+switching by entering a nested shell session rather than modifying your
+current shell in place. The project-local `.shell-context` file only
+names which context to load; it does not contain the environment-changing
+shell code itself.
+
+Use direnv if you want each project directory to carry its own
+environment logic and to have your current shell updated in place as you
+enter or leave directories.
+
+If you are coming from dotenv tooling, the closest analogy is that Shell
+Context activates in a new shell. The main difference is that Shell
+Context manages full shell setup through named context files in
+`~/.config/shell-context/contexts/` instead of reading project-local
+environment files.
+
+These differences are the main things to keep in mind when switching:
+Shell Context does not read `.envrc`, does not execute project-local
+setup files directly, and does not rewrite the current shell session in
+place. Instead, it launches a new shell with the chosen context loaded.
 
 
 ## Usage
@@ -48,7 +78,7 @@ command. At any time, you can run `shell-context -h` for a list of
 available commands or `shell-context <command> -h` for details on a
 specific command.
 
-If there is cleanup that needs te be performed when switching from one
+If there is cleanup that needs to be performed when switching from one
 context to another, create a `\*.context-cleanup` file for that context.
 If no cleanup file is defined for a context, then `PATH` will be
 restored from `SHELL\_CONTEXT\_PRE\_PATH` as the default cleanup behavior.
@@ -99,7 +129,7 @@ Clone this repository to a location of your choice, such as
 
 Create a symbolic link to the `src/shell-context.sh` file in a location
 that your shell startup files can source, such as 
-~/.local/lib/shell-context.sh`:
+`~/.local/lib/shell-context.sh`:
 
 ```bash
 ln -s ~/.local/lib/shell-context/src/shell-context.sh ~/.local/lib/shell-context.sh
@@ -135,16 +165,18 @@ This split is intentional:
   context-specific setup that depends on tools initialized later in the
   startup sequence
 
-Optionally, before sourcing the library, set and export...
+Optionally, before sourcing the library, export any of the following
+environment variables:
+
 * `SHELL\_CONTEXT\_AUTO` and/or `SHELL\_CONTEXT\_PATH\_SEARCH\_MODE` to
-  customize the behavior of Shell Context.
+   customize Shell Context's behaviors.
 * `SHELL\_CONTEXT\_AUTO` to a positive integer to enable automatic
- 'local-context loading when you `cd` into a directory and to specify
- its maximum depth of context nesting.
+  loading of the local-context when you `cd` into a directory and to
+  specify the maximum depth for auto-loading.
 * `SHELL\_CONTEXT\_PATH\_SEARCH\_MODE` to "physical" to have Shell
- Context search the physical path (with symlinks resolved) instead of
- the logical path when searching for `.shell-context` files.  See the
- help for `shell-context load-local` for more details.
+  Context search the physical path (with symlinks resolved) instead of
+  the logical path when searching for `.shell-context` files. See the
+  help for `shell-context load-local` for more details.
 
 Next, create the configuration directory:
 
@@ -188,7 +220,7 @@ is initializing after switching away from a context. If your context
 modifies `PATH`, restore it from
 `SHELL\_CONTEXT\_PRE\_PATH` in that cleanup file before applying the next
 context's changes. If no cleanup file is defined for a context, then
-`PATH` will be resored from `SHELL\_CONTEXT\_PRE\_PATH` automatically.
+`PATH` will be restored from `SHELL\_CONTEXT\_PRE\_PATH` automatically.
 
 For example:
 
@@ -226,15 +258,8 @@ Steve Jorgensen - stevej@stevej.name
 Project Link: (none yet)
 
 ## Version History
-
-No actual version history yet.
-
-Example version history:
-* 0.2
-    * Various bug fixes and optimizations
-    * See [commit change]() or See [release history]()
-* 0.1
-    * Initial Release
+* 1.0.0
+    * Initial release.
 
 ## License
 
@@ -243,3 +268,5 @@ for details
 
 ## Acknowledgments
 * [direnv](https://direnv.net/)
+* [dotenv](https://www.npmjs.com/package/dotenv)
+* [python-dotenv](https://pypi.org/project/python-dotenv/)
