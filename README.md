@@ -155,6 +155,13 @@ that your shell startup files can source, such as
 ln -s ~/.local/lib/shell-context/src/shell-context.sh ~/.local/lib/shell-context.sh
 ```
 
+> [!NOTE]
+> The shell-context.sh file is self-contained and does not require any
+> other files from the repository to function. The other files in the
+> repository are for development and testing purposes only. The symbolic
+> link is recommended so that you can update by simply running `git pull`
+> in the repository directory.
+
 Then update your shell startup file:
 
 * Bash interactive shells commonly use `~/.bashrc`
