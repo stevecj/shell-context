@@ -45,17 +45,35 @@ Use direnv if you want each project directory to carry its own
 environment logic and to have your current shell updated in place as you
 enter or leave directories.
 
-If you are coming from dotenv tooling, the closest analogy is that Shell
-Context activates in a new shell. The main difference is that Shell
+If you are coming from dotenv tooling, the main difference is that Shell
 Context manages full shell setup through named context files in
 `~/.config/shell-context/contexts/` instead of reading project-local
 environment files.
 
-These differences are the main things to keep in mind when switching:
 Shell Context does not read `.envrc`, does not execute project-local
 setup files directly, and does not rewrite the current shell session in
-place. Instead, it launches a new shell with the chosen context loaded.
+place.
 
+
+## Subshells
+
+Shell Context always launches a new subshell when loading a context,
+even if another context is already active.
+
+This design provides fairly clean separation between contexts. Shell
+variables and functions defined in the current shell are not
+automatically available in the new context shell, and changes made in a
+child shell affect neither shell variables nor exported environment
+variables in the parent shell.
+
+The tradeoff is that each context load creates another nested shell
+session. A good strategy is to use one context per terminal window or
+tab and exit that shell when you are done with the context. Deeper
+nesting remains available for the occasional time when it is useful.
+
+If you display the current context in your prompt, it includes the
+context depth by default when the depth is 2 or greater, making it
+obvious when you have nested beyond depth 1.
 
 ## Usage
 
@@ -83,16 +101,18 @@ context to another, create a `*.context-cleanup` file for that context.
 If no cleanup file is defined for a context, then `PATH` will be
 restored from `SHELL_CONTEXT_PRE_PATH` as the default cleanup behavior.
 
+Cleanup behavior is most useful when a context (which may be the default
+context) sets variables that should not leak into the next context.
+Otherwise, you will probably not need to create cleanup files.
+
 Load a context with:
 
 ```bash
 shell-context load work
 ```
 
-That always launches a new nested shell session with the selected
-context loaded, even if another context is already active. To leave that
-context (exit the subshell) later, run the following, or just exit the
-shell as you normally would:
+To leave that context later, run the following, or just exit the shell
+as you normally would:
 
 ```bash
 shell-context unload
@@ -129,7 +149,7 @@ Clone this repository to a location of your choice, such as
 
 Create a symbolic link to the `src/shell-context.sh` file in a location
 that your shell startup files can source, such as 
-`~/.local/lib/shell-context.sh`:
+`~/.local/lib/shell-context.sh` (recommended):
 
 ```bash
 ln -s ~/.local/lib/shell-context/src/shell-context.sh ~/.local/lib/shell-context.sh
@@ -186,8 +206,8 @@ mkdir -p ~/.config/shell-context/contexts
 
 To temporarily disable Shell Context without removing your
 configuration, create a file named `~/.config/shell-context/DISABLED`.
-When that file exists, Shell Context will refuse all non-help commands
-until you remove it.
+When that file exists, Shell Context will refuse all commands except
+help and version output until you remove it.
 
 Context behavior is defined by shell files in that directory. For a
 context named `work`, the supported files are:
