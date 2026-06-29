@@ -28,32 +28,18 @@ this time. Make some noise or submit a pull request if you want to
 see support for other shells.
 
 
-## Shell Context vs direnv and dotenv
+## Shell Context vs direnv
 
-Shell Context, [direnv](https://direnv.net/), and dotenv-style tools all
-help you work with project-specific shell environments, but they make
-different tradeoffs.
+Shell Context and [direnv](https://direnv.net/) both help with
+project-specific shell environments, but with different approaches.
 
-Use Shell Context if you want named environments managed from a central
-location under `~/.config/shell-context/contexts/`, and if you prefer
-switching by entering a nested shell session rather than modifying your
-current shell in place. The project-local `.shell-context` file only
-names which context to load; it does not contain the environment-changing
-shell code itself.
-
-Use direnv if you want each project directory to carry its own
-environment logic and to have your current shell updated in place as you
-enter or leave directories.
-
-If you are coming from dotenv tooling, the main difference is that Shell
-Context manages full shell setup through named context files in
-`~/.config/shell-context/contexts/` instead of reading project-local
-environment files.
-
-Shell Context does not read `.envrc`, does not execute project-local
-setup files directly, and does not rewrite the current shell session in
-place.
-
+|                                | Shell Context                           | direnv                            |
+|--------------------------------|-----------------------------------------|-----------------------------------|
+| Implementation                 | Shell script                            | Go binary                         |
+| Context shell code location    | Centralized                             | Project-local                     |
+| Project-local files            | `.shell-context` (with context name)    | `.envrc`/`.env` (with shell code) |
+| Context/environment switching  | Invokes new subshell                    | Modifies current shell state      |
+| Project-local file search | Current directory and ancestors<br>(configurable logical or physical path) | Current directory and ancestors<br>(logical or physical path depending on version) |
 
 ## Subshells
 
