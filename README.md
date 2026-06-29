@@ -33,29 +33,29 @@ see support for other shells.
 Shell Context and [direnv](https://direnv.net/) both help with
 project-specific shell environments, but with different approaches.
 
-|                                | Shell Context                           | direnv                            |
-|--------------------------------|-----------------------------------------|-----------------------------------|
-| Implementation                 | Shell script                            | Go binary                         |
-| Context shell code location    | Centralized                             | Project-local                     |
-| Project-local files            | `.shell-context` (with context name)    | `.envrc`/`.env` (with shell code) |
-| Context/environment switching  | Invokes new subshell                    | Modifies current shell state      |
-| Project-local file search | Current directory and ancestors<br>(configurable logical or physical path) | Current directory and ancestors<br>(logical or physical path depending on version) |
+|                                    | Shell Context                           | direnv                            |
+|------------------------------------|-----------------------------------------|-----------------------------------|
+| **Implementation**                 | Shell script                            | Go binary                         |
+| **Context shell code location**    | Centralized                             | Project-local                     |
+| **Project-local files**            | `.shell-context` (with context name)    | `.envrc`/`.env` (with shell code) |
+| **Context/environment switching**  | Invokes new subshell                    | Modifies current shell state      |
+| **Project-local file search** | Current directory and ancestors<br>(configurable logical or physical path) | Current directory and ancestors<br>(logical or physical path depending on direnv version) |
 
 ## Subshells
 
 Shell Context always launches a new subshell when loading a context,
 even if another context is already active.
 
-This design provides fairly clean separation between contexts. Shell
-variables and functions defined in the current shell are not
-automatically available in the new context shell, and changes made in a
-child shell affect neither shell variables nor exported environment
-variables in the parent shell.
+This design provides fairly clean separation between contexts in a very
+simple manner. Shell (non-exported) variables and functions defined in the
+current shell are not automatically available in the new context shell, and
+changes made in a child shell affect neither shell variables nor exported
+environment variables in the parent shell.
 
-The tradeoff is that each context load creates another nested shell
-session. A good strategy is to use one context per terminal window or
-tab and exit that shell when you are done with the context. Deeper
-nesting remains available for the occasional time when it is useful.
+The tradeoff is that each context load creates an additional nested shell
+session. A good strategy is to use one context per terminal window or tab
+and exit that shell when you are done with the context. Deeper nesting
+remains available for the occasional time when it is useful.
 
 If you display the current context in your prompt, it includes the
 context depth by default when the depth is 2 or greater, making it
