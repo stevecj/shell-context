@@ -31,7 +31,7 @@ EOF
 }
 
 function shell-context() {
-  local version="1.0.1"
+  local version="1.0.2"
 
   local OPTIND=1 opt OPTARG
   while getopts ":vh" opt; do

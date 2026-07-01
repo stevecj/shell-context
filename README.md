@@ -275,6 +275,9 @@ Project Link: (none yet)
     * Initial release.
 * 1.0.1
     * Improved documentation.
+* 1.0.2
+    * Improved documentation.
+    * Improved help output from functions.
 
 ## License
 
