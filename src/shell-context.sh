@@ -185,6 +185,45 @@ start of your shell startup file, e.g. example ~/.bashrc,
 
 Options:
   -h  Show this usage output and exit.
+
+Environment variables used:
+  SHELL_CONTEXT
+    The name of the context being initialized, if any.
+  SHELL_CONTEXT_DEPTH
+    The nested depth of the current shell. If set, it must be a
+    non-negative integer.
+  SHELL_CONTEXT_PRE_PATH
+    The original PATH value from before context-specific PATH changes
+    were applied. If already set, PATH is restored from this value
+    before the new context-start file is sourced.
+  SHELL_CONTEXT_PREVIOUS_CONTEXT
+    The name of the previous/parent context, if any. Its cleanup file
+    is sourced before the new context is initialized.
+  SHELL_CONTEXT_START_FILE
+    The path to the context-start file for the current named context,
+    if any.
+
+Environment variables assigned:
+  PATH
+    Restored from SHELL_CONTEXT_PRE_PATH before sourcing a named
+    context's context-start file if no cleaup file was sourced (or
+    possibly by the sourced cleanup file).
+  SHELL_CONTEXT_TITLE
+    Reset before initialization, then left for the context-start file to
+    optionally set.  After initialization, it is set to the context name
+    if not assigned yet.
+  SHELL_CONTEXT_PRE_PATH
+    If previously unset or blank, set to the shell's current PATH before
+    any cleanup or new context-start file is applied.
+  SHELL_CONTEXT_DEPTH
+    The nested context depth of the current shell, set to 0 if previously
+    unset.
+  SHELL_CONTEXT_START_FILE
+    Cleared when no named context is being initialized, or set to
+    ~/.config/shell-context/contexts/_default.context-start if that
+    file exists.
+  SHELL_CONTEXT_FINALIZE_FILE
+    Cleared when no named context is being initialized.
 EOF
   :
 }
@@ -241,21 +280,20 @@ called near the end of your shell startup file, e.g. example ~/.bashrc,
 Options:
   -h  Show this usage output and exit.
 
-Environment variables:
+Environment variables used:
   SHELL_CONTEXT
     The name of the current context, if any.
-  SHELL_CONTEXT_START_FILE
-    The path to the context-start file for the current context, if any.
   SHELL_CONTEXT_FINALIZE_FILE
-    The path to the context-finalize file for the current context, i
+    The path to the context-finalize file for the current context, if
     any.
   SHELL_CONTEXT_AUTO
-    If set to a non-negative integer, then values 1 and larger install
-    the shell_context_auto_local prompt hook. That value also limits
-    how deep automatic nesting may go: if SHELL_CONTEXT_DEPTH is the
-    same as or greater than SHELL_CONTEXT_AUTO, auto-local will do
-    nothing. Values 0, blank, or unset disable automatic hook
-    installation.
+    If set, it must be a non-negative integer. Values 1 and larger
+    install the shell_context_auto_local prompt hook and set the maximum
+    nesting depth for automatic context loading. Values 0, blank, or
+    unset disable automatic hook installation.
+
+Environment variables assigned:
+  Does not directly assign any environment variables,
 EOF
   :
 }
@@ -326,6 +364,17 @@ Tip:
   You may want to define a function in your shell startup file to call
   this subcommand with your preferred options, and then call that
   function in your PS1/PROMPT assignment
+
+Environment variables used:
+  SHELL_CONTEXT_TITLE
+    The current context title, if any. This is used unless it is blank, and a
+    default_value argument is provided.
+  SHELL_CONTEXT_DEPTH
+    The nested context depth of the current shell. If set, it must be a
+    non-negative integer.
+
+Environment variables assigned:
+  Does not directly assign any environment variables,
 EOF
   :
 }
@@ -399,6 +448,28 @@ Arguments:
 
 Options:
   -h  Show this usage output and exit.
+
+Environment variables used:
+  SHELL_CONTEXT
+    The name of the current context, if any. When set, it becomes the
+    previous/parent context for the newly launched shell.
+  SHELL_CONTEXT_DEPTH
+    The nested context depth of the current shell. If set, it must be a
+    non-negative integer.
+
+Environment variables assigned:
+  SHELL_CONTEXT
+    Set in the newly launched shell to the requested context name.
+  SHELL_CONTEXT_START_FILE
+    Set in the newly launched shell to the selected
+    <context_name>.context-start file.
+  SHELL_CONTEXT_FINALIZE_FILE
+    Set in the newly launched shell to the selected
+    <context_name>.context-finalize file, if one exists.
+  SHELL_CONTEXT_PREVIOUS_CONTEXT
+    Set in the newly launched shell to the current context name, if any.
+  SHELL_CONTEXT_DEPTH
+    Set in the newly launched shell to the current shell depth plus 1.
 EOF
   :
 }
@@ -465,6 +536,14 @@ Options:
   -y  Don't prompt for confirmation before unloading the current
       context.
   -h  Show this usage output and exit.
+
+Environment variables used:
+  SHELL_CONTEXT
+    The name of the current context. If blank or unset, unload does
+    nothing.
+
+Environment variables assigned:
+  Does not directly assign any environment variables,
 EOF
   :
 }
@@ -521,11 +600,18 @@ Options:
   -y  Accepted for compatibility; currently has no effect.
   -h  Show this usage output and exit.
 
-Environment variables:
-  SHELL_CONTEXT_PATH_SEARCH_MODE:
+Environment variables used:
+  SHELL_CONTEXT
+    The name of the current context, if any. If no .shell-context file
+    is found and SHELL_CONTEXT is set, a nested default context is
+    loaded instead of doing nothing.
+  SHELL_CONTEXT_PATH_SEARCH_MODE
     If set to "logical", then the -l option will be used by default.
     If set to "physical", then the -p option will be used by default.
-    If not set, then the default is "logical".
+    If blank or unset, the default is "logical".
+
+Environment variables assigned:
+  Does not directly assign any environment variables,
 EOF
   :
 }
@@ -641,6 +727,27 @@ the same as or greater than the configured limit, it will do nothing.
 
 Options:
   -h  Show this usage output and exit.
+
+Environment variables used:
+  SHELL_CONTEXT_AUTO
+    If set, it must be a non-negative integer. Values 1 and larger limit
+    how deeply automatic context loading may nest. Values 0, blank, or
+    unset disable depth-limit checks.
+  SHELL_CONTEXT_DEPTH
+    The nested context depth of the current shell. If set, it must be a
+    non-negative integer. It is compared with SHELL_CONTEXT_AUTO before
+    an automatic load occurs.
+  SHELL_CONTEXT_PATH_SEARCH_MODE
+    Controls whether local context lookup uses the logical or physical
+    working-directory path. If blank or unset, the default is "logical".
+  SHELL_CONTEXT_PREV_DIR
+    The previous working directory used to detect whether the current
+    directory has changed since the last check.
+
+Environment variables assigned:
+  SHELL_CONTEXT_PREV_DIR
+    Set to the current working directory the first time this function
+    runs, and updated whenever the current working directory changes.
 EOF
   :
 }
