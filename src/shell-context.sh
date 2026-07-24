@@ -23,6 +23,7 @@ Subcommands:
   load-local      Load  context named in nearest .shell-context file.
   auto-local      Load context from nearest .shell-context file on
                   directory change.
+  run             Run a command within a named context environment.
   version         Show the version of Shell Context and exit.
 
 Run `shell-context <subcommand> -h` for subcommand-specific help.
@@ -72,6 +73,7 @@ function shell-context() {
     unload)        _shell_context_unload "$@" ;;
     load-local)    _shell_context_load_local "$@" ;;
     auto-local)    shell_context_auto_local "$@" ;;
+    run)           _shell_context_run "$@" ;;
     ""|-h|--help)  _shell_context_usage ;;
     *)
       echo "Unknown subcommand: $subcommand" >&2
@@ -84,9 +86,12 @@ function shell-context() {
 function _shell_context_subcommand_help_requested() {
   local arg
   for arg in "$@"; do
-    if [[ "$arg" == "-h" ]]; then
-      return 0
-    fi
+    case "$arg" in
+      -h|--help) return 0 ;;
+      --) return 1 ;;
+      -*) ;;
+      *) return 1 ;;
+    esac
   done
 
   return 1
@@ -707,6 +712,84 @@ function _shell_context_load_local() {
 
   resolution=$(_shell_context_resolve_local_context "$path_search_mode") || return 1
   _shell_context_apply_local_context_resolution "$resolution" "$be_less_verbose"
+}
+
+function _shell_context_run_usage() {
+  cat <<'EOF'
+Usage: shell-context run <context_name> [--] <command> [arguments...]
+Usage: shell-context run -h
+
+Run a command within the environment of a named context. The
+context-start file is sourced before the command is executed, making
+its exported variables and PATH changes available to the command.
+
+Unlike shell-context load, this does not open an interactive shell
+session; it runs the given command and exits when it completes.
+
+Arguments:
+  context_name:
+    The name of the context whose environment to apply. This should
+    correspond to a <context_name>.context-start file in the
+    ~/.config/shell-context/contexts/ directory.
+  command:
+    The command to run within the context environment.
+  arguments...:
+    Additional arguments passed to the command.
+
+Options:
+  --  End shell-context option parsing. Arguments after this are treated
+      as the command and its arguments.
+  -h  Show this usage output and exit.
+
+Environment variables used:
+  SHELL_CONTEXT_DEPTH
+    The nested context depth of the current shell. If set, it must be a
+    non-negative integer.
+
+Environment variables assigned:
+  Does not directly assign any environment variables,
+EOF
+  :
+}
+
+function _shell_context_run() {
+  if [[ "${1-}" == "-h" ]]; then
+    _shell_context_run_usage
+    return 0
+  fi
+
+  local context_name="${1-}"
+  if [[ -z "$context_name" ]]; then
+    _shell_context_run_usage >&2
+    return 1
+  fi
+  shift
+
+  if [[ "${1-}" == "--" ]]; then
+    shift
+  fi
+
+  local context_start_file=$HOME/.config/shell-context/contexts/"$context_name".context-start
+  if [[ ! -f $context_start_file ]]; then
+    echo "No context-start file found for '$context_name' at $context_start_file." >&2
+    return 1
+  fi
+
+  local cmd="${1-}"
+  if [[ -z "$cmd" ]]; then
+    _shell_context_run_usage >&2
+    return 1
+  fi
+  shift
+
+  local current_shell current_depth next_depth
+  current_shell=$(_shell_context_current_shell) || return 1
+  current_depth=$(_shell_context_current_depth) || return 1
+  next_depth=$((current_depth + 1))
+
+  SHELL_CONTEXT="$context_name" \
+  SHELL_CONTEXT_DEPTH="$next_depth" \
+    "$current_shell" -c '. "$1"; shift; exec "$@"' _ "$context_start_file" "$cmd" "$@"
 }
 
 function _shell_context_auto_local_usage() {

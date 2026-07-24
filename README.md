@@ -104,6 +104,25 @@ as you normally would:
 shell-context unload
 ```
 
+To run a single command within a context's environment without opening
+an interactive shell session, use the `run` subcommand:
+
+```bash
+shell-context run work make test
+```
+
+This sources the context's `*.context-start` file, making its exported
+variables and PATH changes available to the command, then exits when the
+command completes.
+
+If the command itself needs options (for example `-h`), insert `--`
+after the context name so later arguments are treated only as command
+arguments:
+
+```bash
+shell-context run work -- my-command -h
+```
+
 Shell Context also supports directory-local selection through a
 `.shell-context` file. Place a file with a context name in a project
 directory:

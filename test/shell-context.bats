@@ -392,3 +392,111 @@ EOF
   [[ "$output" == *"Entering context 'demo'..."* ]]
   [[ "$output" == *"FAKE_SHELL CMD=$TEST_SHELL SHELL_CONTEXT=demo START=$HOME/.config/shell-context/contexts/demo.context-start FINAL= PREVIOUS= DEPTH=2"* ]]
 }
+
+@test "run subcommand help is available" {
+  run_in_test_shell \
+    'source "$1"; shell-context run -h' "$SCRIPT_PATH"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Usage: shell-context run <context_name> [--] <command> [arguments...]"* ]]
+}
+
+@test "run does not treat -h as help when it is not the first argument" {
+  mkdir -p "$HOME/.config/shell-context/contexts"
+  : >"$HOME/.config/shell-context/contexts/demo.context-start"
+
+  run_in_test_shell \
+    'export HOME="$1"; source "$2"; shell-context run demo printf "%s" "-h" 2>&1' \
+    "$HOME" "$SCRIPT_PATH"
+
+  [ "$status" -eq 0 ]
+  [ "$output" = "-h" ]
+}
+
+@test "run fails when no context name is given" {
+  run_in_test_shell \
+    'export HOME="$1"; source "$2"; shell-context run 2>&1' "$HOME" "$SCRIPT_PATH"
+
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"Usage: shell-context run"* ]]
+}
+
+@test "run fails when no command is given" {
+  mkdir -p "$HOME/.config/shell-context/contexts"
+  : >"$HOME/.config/shell-context/contexts/demo.context-start"
+
+  run_in_test_shell \
+    'export HOME="$1"; source "$2"; shell-context run demo 2>&1' "$HOME" "$SCRIPT_PATH"
+
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"Usage: shell-context run"* ]]
+}
+
+@test "run accepts -- before the command and passes -h to that command" {
+  mkdir -p "$HOME/.config/shell-context/contexts"
+  : >"$HOME/.config/shell-context/contexts/demo.context-start"
+
+  run_in_test_shell \
+    'export HOME="$1"; source "$2"; shell-context run demo -- printf "%s" "-h"' \
+    "$HOME" "$SCRIPT_PATH"
+
+  [ "$status" -eq 0 ]
+  [ "$output" = "-h" ]
+}
+
+@test "run fails when the context does not exist" {
+  run_in_test_shell \
+    'export HOME="$1"; source "$2"; shell-context run missing printf ok 2>&1' "$HOME" "$SCRIPT_PATH"
+
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"No context-start file found for 'missing'"* ]]
+}
+
+@test "run executes the command with the context environment applied" {
+  mkdir -p "$HOME/.config/shell-context/contexts"
+  printf 'export TEST_CTX_VAR=from-context\n' >"$HOME/.config/shell-context/contexts/myctx.context-start"
+
+  run_in_test_shell \
+    'export HOME="$1"; source "$2"; shell-context run myctx printenv TEST_CTX_VAR' \
+    "$HOME" "$SCRIPT_PATH"
+
+  [ "$status" -eq 0 ]
+  [ "$output" = "from-context" ]
+}
+
+@test "run passes additional arguments to the command" {
+  mkdir -p "$HOME/.config/shell-context/contexts"
+  : >"$HOME/.config/shell-context/contexts/demo.context-start"
+
+  run_in_test_shell \
+    'export HOME="$1"; source "$2"; shell-context run demo printf "%s %s" hello world' \
+    "$HOME" "$SCRIPT_PATH"
+
+  [ "$status" -eq 0 ]
+  [ "$output" = "hello world" ]
+}
+
+@test "run with command -h does not bypass disabled mode" {
+  mkdir -p "$HOME/.config/shell-context/contexts"
+  : >"$HOME/.config/shell-context/contexts/demo.context-start"
+  : >"$HOME/.config/shell-context/DISABLED"
+
+  run_in_test_shell \
+    'export HOME="$1"; source "$2"; shell-context run demo -- printf "%s" "-h" 2>&1' \
+    "$HOME" "$SCRIPT_PATH"
+
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"Shell Context is disabled."* ]]
+}
+
+@test "run increments the context depth" {
+  mkdir -p "$HOME/.config/shell-context/contexts"
+  : >"$HOME/.config/shell-context/contexts/demo.context-start"
+
+  run_in_test_shell \
+    'export HOME="$1"; source "$2"; export SHELL_CONTEXT_DEPTH=1; shell-context run demo printenv SHELL_CONTEXT_DEPTH' \
+    "$HOME" "$SCRIPT_PATH"
+
+  [ "$status" -eq 0 ]
+  [ "$output" = "2" ]
+}
