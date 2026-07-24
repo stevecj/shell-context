@@ -167,7 +167,7 @@ EOF
 
 @test "ls -v includes context titles as the second column" {
   mkdir -p "$HOME/.config/shell-context/contexts"
-  printf 'export SHELL_CONTEXT_TITLE="Alpha Title"\n' >"$HOME/.config/shell-context/contexts/alpha.context-start"
+  printf 'echo noisy-output\nexport SHELL_CONTEXT_TITLE="Alpha Title"\n' >"$HOME/.config/shell-context/contexts/alpha.context-start"
   : >"$HOME/.config/shell-context/contexts/zulu.context-start"
 
   run_in_test_shell \
@@ -179,7 +179,7 @@ EOF
 
 @test "show reports context name title and resolved file paths" {
   mkdir -p "$HOME/.config/shell-context/contexts"
-  printf 'export SHELL_CONTEXT_TITLE="Alpha Title"\n' >"$HOME/.config/shell-context/contexts/alpha.context-start"
+  printf 'echo noisy-output\nexport SHELL_CONTEXT_TITLE="Alpha Title"\n' >"$HOME/.config/shell-context/contexts/alpha.context-start"
   : >"$HOME/.config/shell-context/contexts/alpha.context-finalize"
   : >"$HOME/.config/shell-context/contexts/alpha.context-cleanup"
   : >"$HOME/.config/shell-context/contexts/_default.context-finalize"
@@ -189,6 +189,7 @@ EOF
     'export HOME="$1"; source "$2"; shell-context show alpha' "$HOME" "$SCRIPT_PATH"
 
   [ "$status" -eq 0 ]
+  [[ "$output" != *"noisy-output"* ]]
   [[ "$output" == *"Context name: alpha"* ]]
   [[ "$output" == *"Title: Alpha Title"* ]]
   [[ "$output" == *"Start file: $HOME/.config/shell-context/contexts/alpha.context-start"* ]]

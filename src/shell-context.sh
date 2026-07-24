@@ -451,7 +451,7 @@ function _shell_context_context_title() {
   SHELL_CONTEXT_PRE_PATH="$PATH" \
   SHELL_CONTEXT_TITLE= \
   SHELL_CONTEXT_DEPTH=0 \
-    "$current_shell" -c '. "$1"; if [[ -z "$SHELL_CONTEXT_TITLE" ]]; then SHELL_CONTEXT_TITLE="$2"; fi; printf "%s" "$SHELL_CONTEXT_TITLE"' _ "$context_start_file" "$context_name"
+    "$current_shell" -c '{ . "$1"; } >/dev/null 2>&1 || exit $?; if [[ -z "$SHELL_CONTEXT_TITLE" ]]; then SHELL_CONTEXT_TITLE="$2"; fi; printf "%s" "$SHELL_CONTEXT_TITLE"' _ "$context_start_file" "$context_name"
 }
 
 function _shell_context_ls() {
