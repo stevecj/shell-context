@@ -106,7 +106,7 @@ EOF
     'source "$1"; shell-context init-finalize -h' "$SCRIPT_PATH"
 
   [ "$status" -eq 0 ]
-  [[ "$output" == *"Finalize the initialization of the Shell Context system."* ]]
+  [[ "$output" == *"Finalize initialization of the Shell Context system."* ]]
   [[ "$output" == *"~/.zshrc"* ]]
 }
 

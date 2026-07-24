@@ -22,7 +22,7 @@ Subcommands:
   show            Show details for a context.
   load            Enter a named context.
   unload          Exit the current context shell.
-  load-local      Load  context named in nearest .shell-context file.
+  load-local      Load context named in nearest .shell-context file.
   auto-local      Load context from nearest .shell-context file on
                   directory change.
   run             Run a command within a named context environment.
@@ -207,7 +207,7 @@ Usage: shell-context init-start
 Usage: shell-context init-start -h
 
 Initialize the Shell Context system. This should be called near the
-start of your shell startup file, e.g. example ~/.bashrc,
+start of your shell startup file, e.g. ~/.bashrc,
 ~/.bash_profile, or ~/.zshrc .
 
 Options:
@@ -233,17 +233,20 @@ Environment variables used:
 Environment variables assigned:
   PATH
     Restored from SHELL_CONTEXT_PRE_PATH before sourcing a named
-    context's context-start file if no cleaup file was sourced (or
+    context's context-start file if no cleanup file was sourced (or
     possibly by the sourced cleanup file).
   SHELL_CONTEXT_TITLE
-    Reset before initialization, then left for the context-start file to
-    optionally set.  After initialization, it is set to the context name
+    Reset before initialization, then left for the context-start
+    file to optionally set. After initialization, it is set to
+    the context name
     if not assigned yet.
   SHELL_CONTEXT_PRE_PATH
-    If previously unset or blank, set to the shell's current PATH before
+    If previously unset or blank, set to the shell's current PATH
+    before
     any cleanup or new context-start file is applied.
   SHELL_CONTEXT_DEPTH
-    The nested context depth of the current shell, set to 0 if previously
+    The nested context depth of the current shell, set to 0 if
+    previously
     unset.
   SHELL_CONTEXT_START_FILE
     Cleared when no named context is being initialized, or set to
@@ -300,8 +303,8 @@ function _shell_context_finalize_usage() {
 Usage: shell-context init-finalize
 Usage: shell-context init-finalize -h
 
-Finalize the initialization of the Shell Context system. This should be
-called near the end of your shell startup file, e.g. example ~/.bashrc,
+Finalize initialization of the Shell Context system. This should be
+called near the end of your shell startup file, e.g. ~/.bashrc,
 ~/.bash_profile, or ~/.zshrc .
 
 Options:
@@ -315,17 +318,19 @@ Environment variables used:
     any.
   SHELL_CONTEXT_AUTO
     If set, it must be a non-negative integer. Values 1 and larger
-    install the shell_context_auto_local prompt hook and set the maximum
+    install the shell_context_auto_local prompt hook and set the
+    maximum
     nesting depth for automatic context loading. Values 0, blank, or
     unset disable automatic hook installation.
   SHELL_CONTEXT_COMPLETIONS
     If set, it must be a non-negative integer. Values 1 and larger
-    register shell completion for shell-context when completion support
+    register shell completion for shell-context when completion
+    support
     is available. Values 0 or blank disable registration. If unset,
     completion registration is enabled by default.
 
 Environment variables assigned:
-  Does not directly assign any environment variables,
+  Does not directly assign any environment variables.
 EOF
   :
 }
@@ -370,7 +375,8 @@ function _shell_context_init_finalize() {
 
 function _shell_context_prompt_title_usage() {
   cat <<'EOF'
-Usage: shell-context prompt-title [-n format] [-d depth_format] [-D minimum_depth] [default_value]
+Usage: shell-context prompt-title [-n format] [-d depth_format]
+                                  [-D minimum_depth] [default_value]
 Usage: shell-context prompt-title -h
 
 Output the context title for use in the prompt. This should be called
@@ -384,11 +390,13 @@ Options:
       A printf format string to format the context title (default:
       '%s').
   -d depth_format
-      A printf format string to append the current context depth to the
+      A printf format string to append the current context depth
+      to the
       title when the depth meets the minimum threshold (default:
       ' (%s)').
   -D minimum_depth
-      The minimum SHELL_CONTEXT_DEPTH at which the formatted depth will
+      The minimum SHELL_CONTEXT_DEPTH at which the formatted
+      depth will
       be appended (default: 2).
   -h  Show this usage output and exit.
 
@@ -404,14 +412,16 @@ Tip:
 
 Environment variables used:
   SHELL_CONTEXT_TITLE
-    The current context title, if any. This is used unless it is blank, and a
+    The current context title, if any. This is used unless it is
+    blank, and a
     default_value argument is provided.
   SHELL_CONTEXT_DEPTH
-    The nested context depth of the current shell. If set, it must be a
+    The nested context depth of the current shell. If set, it
+    must be a
     non-negative integer.
 
 Environment variables assigned:
-  Does not directly assign any environment variables,
+  Does not directly assign any environment variables.
 EOF
   :
 }
@@ -693,7 +703,8 @@ Use the context with the given name. This will open a new bash or zsh
 session matching the current shell, with the environment variables set
 according to the context.
 
-Shell Context exports SHELL_CONTEXT_DEPTH to track context nesting. The
+Shell Context exports SHELL_CONTEXT_DEPTH to track context
+nesting. The
 first context loaded from a non-context shell starts at depth 1, and
 each nested context shell increments that depth by 1.
 
@@ -722,7 +733,8 @@ Environment variables used:
     The name of the current context, if any. When set, it becomes the
     previous/parent context for the newly launched shell.
   SHELL_CONTEXT_DEPTH
-    The nested context depth of the current shell. If set, it must be a
+    The nested context depth of the current shell. If set, it
+    must be a
     non-negative integer.
 
 Environment variables assigned:
@@ -735,7 +747,8 @@ Environment variables assigned:
     Set in the newly launched shell to the selected
     <context_name>.context-finalize file, if one exists.
   SHELL_CONTEXT_PREVIOUS_CONTEXT
-    Set in the newly launched shell to the current context name, if any.
+    Set in the newly launched shell to the current context
+    name, if any.
   SHELL_CONTEXT_DEPTH
     Set in the newly launched shell to the current shell depth plus 1.
 EOF
@@ -811,7 +824,7 @@ Environment variables used:
     nothing.
 
 Environment variables assigned:
-  Does not directly assign any environment variables,
+  Does not directly assign any environment variables.
 EOF
   :
 }
@@ -852,14 +865,15 @@ Usage: shell-context load-local -h
 
 By default, loads the context specified by a .shell-context file
 in the current working directory or any of its ancestors (in the
-current logical path. If no .shell-context file is found while a named
-context is currently loaded, then a nested default context will be
-loaded instead. See the help for shell-context load for more details
-about loading contexts.
+current logical path by default). If no .shell-context file is found
+while a named context is currently loaded, then a nested default
+context will be loaded instead. See the help for shell-context load
+for more details about loading contexts.
 
 Options:
   -l  Look for a .shell-context file in the logical path of the
-      current working directory, following any symlinks.
+      current working directory, preserving symlink path
+      components.
       This is the default behavior if neither -l nor -p is specified
       and SHELL_CONTEXT_PATH_SEARCH_MODE is not set.
   -p  Look for a .shell-context file in the physical path of the
@@ -879,7 +893,7 @@ Environment variables used:
     If blank or unset, the default is "logical".
 
 Environment variables assigned:
-  Does not directly assign any environment variables,
+  Does not directly assign any environment variables.
 EOF
   :
 }
@@ -1000,17 +1014,19 @@ Arguments:
     Additional arguments passed to the command.
 
 Options:
-  --  End shell-context option parsing. Arguments after this are treated
+  --  End shell-context option parsing. Arguments after this
+      are treated
       as the command and its arguments.
   -h  Show this usage output and exit.
 
 Environment variables used:
   SHELL_CONTEXT_DEPTH
-    The nested context depth of the current shell. If set, it must be a
+    The nested context depth of the current shell. If set, it
+    must be a
     non-negative integer.
 
 Environment variables assigned:
-  Does not directly assign any environment variables,
+  Does not directly assign any environment variables.
 EOF
   :
 }
@@ -1068,7 +1084,8 @@ directory has changed since the last time this was checked.
 
 If SHELL_CONTEXT_AUTO is set to a positive integer, that value limits
 how deeply this command/function will automatically nest contexts.
-When a context change would otherwise occur, and SHELL_CONTEXT_DEPTH is
+When a context change would otherwise occur, and
+SHELL_CONTEXT_DEPTH is
 the same as or greater than the configured limit, it will do nothing.
 
 Options:
@@ -1076,16 +1093,19 @@ Options:
 
 Environment variables used:
   SHELL_CONTEXT_AUTO
-    If set, it must be a non-negative integer. Values 1 and larger limit
+    If set, it must be a non-negative integer. Values 1 and
+    larger limit
     how deeply automatic context loading may nest. Values 0, blank, or
     unset disable depth-limit checks.
   SHELL_CONTEXT_DEPTH
-    The nested context depth of the current shell. If set, it must be a
-    non-negative integer. It is compared with SHELL_CONTEXT_AUTO before
+    The nested context depth of the current shell. If set, it
+    must be a non-negative integer. It is compared with
+    SHELL_CONTEXT_AUTO before
     an automatic load occurs.
   SHELL_CONTEXT_PATH_SEARCH_MODE
     Controls whether local context lookup uses the logical or physical
-    working-directory path. If blank or unset, the default is "logical".
+    working-directory path. If blank or unset, the default is
+    "logical".
   SHELL_CONTEXT_PREV_DIR
     The previous working directory used to detect whether the current
     directory has changed since the last check.
