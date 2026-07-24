@@ -494,6 +494,21 @@ EOF
   [[ "$output" == *"Shell Context: Not auto-loading context '(default)' beyond depth limit of 1."* ]]
 }
 
+@test "shell_context_auto_local suppresses repeated depth-limit warnings for the same context" {
+  mkdir -p "$HOME/.config/shell-context/contexts" \
+    "$BATS_TEST_TMPDIR/project/a" \
+    "$BATS_TEST_TMPDIR/project/b"
+  printf 'demo\n' >"$BATS_TEST_TMPDIR/project/.shell-context"
+  : >"$HOME/.config/shell-context/contexts/demo.context-start"
+
+  run_in_test_shell \
+    'export HOME="$1"; export SHELL_CONTEXT_AUTO=1; export SHELL_CONTEXT_DEPTH=1; export SHELL_CONTEXT_PREV_DIR="$3/elsewhere"; source "$2"; cd "$3/project/a"; first=$(shell_context_auto_local 2>&1); cd "$3/project/b"; second=$(shell_context_auto_local 2>&1); printf "first=%s\nsecond=%s" "$first" "$second"' "$HOME" "$SCRIPT_PATH" "$BATS_TEST_TMPDIR"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"first=Shell Context: Not auto-loading context 'demo' beyond depth limit of 1."* ]]
+  [[ "$output" == *$'\nsecond='* ]]
+}
+
 @test "shell_context_auto_local does not report the auto nesting limit when no local context applies" {
   run_in_test_shell \
     'export HOME="$1"; export SHELL_CONTEXT_AUTO=1; export SHELL_CONTEXT_DEPTH=1; export SHELL_CONTEXT_PREV_DIR="$3/elsewhere"; source "$2"; mkdir -p "$3/project"; cd "$3/project"; shell_context_auto_local 2>&1' "$HOME" "$SCRIPT_PATH" "$BATS_TEST_TMPDIR"

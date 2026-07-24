@@ -1120,6 +1120,7 @@ EOF
 
 function shell_context_auto_local() {
   local auto_limit current_depth resolution action target_context_name
+  local warning_context_name warning_key
   while getopts ":h" opt; do
     case $opt in
       h) _shell_context_auto_local_usage; return 0 ;;
@@ -1145,15 +1146,28 @@ function shell_context_auto_local() {
       if (( current_depth >= auto_limit )); then
         case $action in
           load-context)
-            echo "Shell Context: Not auto-loading context '$target_context_name' beyond depth limit of $auto_limit." >&2
+            warning_context_name=$target_context_name
             ;;
           load-default)
-            echo "Shell Context: Not auto-loading context '(default)' beyond depth limit of $auto_limit." >&2
+            warning_context_name="(default)"
             ;;
         esac
+        if [[ -n "$warning_context_name" ]]; then
+          warning_key="$auto_limit|$warning_context_name"
+          if [[ "${SHELL_CONTEXT_AUTO_LAST_LIMIT_WARNING-}" != "$warning_key" ]]; then
+            echo "Shell Context: Not auto-loading context '$warning_context_name' beyond depth limit of $auto_limit." >&2
+          fi
+          # Intentionally not exported.
+          SHELL_CONTEXT_AUTO_LAST_LIMIT_WARNING="$warning_key"
+        else
+          # Intentionally not exported.
+          SHELL_CONTEXT_AUTO_LAST_LIMIT_WARNING=
+        fi
         return 0
       fi
     fi
+    # Intentionally not exported.
+    SHELL_CONTEXT_AUTO_LAST_LIMIT_WARNING=
     _shell_context_apply_local_context_resolution "$resolution" 1
   fi
   :
