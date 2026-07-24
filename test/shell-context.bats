@@ -52,6 +52,7 @@ EOF
   [[ "$output" == *"Usage: shell-context <subcommand> [arguments]"* ]]
   [[ "$output" == *"Subcommands:"* ]]
   [[ "$output" == *"ls              List available contexts."* ]]
+  [[ "$output" == *"show            Show details for a context."* ]]
   [[ "$output" == *"Run \`shell-context <subcommand> -h\` for subcommand-specific help."* ]]
 }
 
@@ -174,6 +175,61 @@ EOF
 
   [ "$status" -eq 0 ]
   [ "$output" = $'alpha\tAlpha Title\nzulu\tzulu' ]
+}
+
+@test "show reports context name title and resolved file paths" {
+  mkdir -p "$HOME/.config/shell-context/contexts"
+  printf 'export SHELL_CONTEXT_TITLE="Alpha Title"\n' >"$HOME/.config/shell-context/contexts/alpha.context-start"
+  : >"$HOME/.config/shell-context/contexts/alpha.context-finalize"
+  : >"$HOME/.config/shell-context/contexts/alpha.context-cleanup"
+  : >"$HOME/.config/shell-context/contexts/_default.context-finalize"
+  : >"$HOME/.config/shell-context/contexts/_default.context-cleanup"
+
+  run_in_test_shell \
+    'export HOME="$1"; source "$2"; shell-context show alpha' "$HOME" "$SCRIPT_PATH"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Context name: alpha"* ]]
+  [[ "$output" == *"Title: Alpha Title"* ]]
+  [[ "$output" == *"Start file: $HOME/.config/shell-context/contexts/alpha.context-start"* ]]
+  [[ "$output" == *"Finalize file: $HOME/.config/shell-context/contexts/alpha.context-finalize (source: context)"* ]]
+  [[ "$output" == *"Cleanup file: $HOME/.config/shell-context/contexts/alpha.context-cleanup (source: context)"* ]]
+}
+
+@test "show reports default and implicit cleanup behavior when context-specific files are absent" {
+  mkdir -p "$HOME/.config/shell-context/contexts"
+  : >"$HOME/.config/shell-context/contexts/beta.context-start"
+  : >"$HOME/.config/shell-context/contexts/_default.context-finalize"
+
+  run_in_test_shell \
+    'export HOME="$1"; source "$2"; shell-context show beta' "$HOME" "$SCRIPT_PATH"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Context name: beta"* ]]
+  [[ "$output" == *"Title: beta"* ]]
+  [[ "$output" == *"Finalize file: $HOME/.config/shell-context/contexts/_default.context-finalize (source: default)"* ]]
+  [[ "$output" == *"Cleanup file: (none) (source: implicit-path-restore)"* ]]
+  [[ "$output" == *"Cleanup behavior: PATH will be restored from SHELL_CONTEXT_PRE_PATH when switching away from this context."* ]]
+}
+
+@test "show defaults to the currently loaded context when no argument is given" {
+  mkdir -p "$HOME/.config/shell-context/contexts"
+  printf 'export SHELL_CONTEXT_TITLE="Alpha Title"\n' >"$HOME/.config/shell-context/contexts/alpha.context-start"
+
+  run_in_test_shell \
+    'export HOME="$1"; export SHELL_CONTEXT=alpha; source "$2"; shell-context show' "$HOME" "$SCRIPT_PATH"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Context name: alpha"* ]]
+  [[ "$output" == *"Title: Alpha Title"* ]]
+}
+
+@test "show without an argument fails when no context is currently loaded" {
+  run_in_test_shell \
+    'export HOME="$1"; unset SHELL_CONTEXT; source "$2"; shell-context show 2>&1' "$HOME" "$SCRIPT_PATH"
+
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"No context currently loaded."* ]]
 }
 
 @test "non-help subcommands fail when Shell Context is disabled" {

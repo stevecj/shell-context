@@ -94,6 +94,19 @@ Use `-v` to include each context's title as a second column:
 shell-context ls -v
 ```
 
+Show resolved details for one context (title plus start/finalize/cleanup
+files used):
+
+```bash
+shell-context show work
+```
+
+If a context is already loaded, you can omit the name:
+
+```bash
+shell-context show
+```
+
 If there is cleanup that needs to be performed when switching from one
 context to another, create a `*.context-cleanup` file for that context.
 If no cleanup file is defined for a context, then `PATH` will be

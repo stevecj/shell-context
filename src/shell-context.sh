@@ -19,6 +19,7 @@ Subcommands:
   init-finalize   Finalize Shell Context initialization.
   prompt-title    Output the prompt title for the current context.
   ls              List available contexts.
+  show            Show details for a context.
   load            Enter a named context.
   unload          Exit the current context shell.
   load-local      Load  context named in nearest .shell-context file.
@@ -71,6 +72,7 @@ function shell-context() {
     init-finalize) _shell_context_init_finalize "$@" ;;
     prompt-title)  _shell_context_prompt_title "$@" ;;
     ls)            _shell_context_ls "$@" ;;
+    show)          _shell_context_show "$@" ;;
     load)          _shell_context_load "$@" ;;
     unload)        _shell_context_unload "$@" ;;
     load-local)    _shell_context_load_local "$@" ;;
@@ -438,6 +440,20 @@ EOF
   :
 }
 
+function _shell_context_context_title() {
+  local context_name=$1
+  local context_start_file=$2
+  local current_shell
+
+  current_shell=$(_shell_context_current_shell) || return 1
+  SHELL_CONTEXT="$context_name" \
+  SHELL_CONTEXT_START_FILE="$context_start_file" \
+  SHELL_CONTEXT_PRE_PATH="$PATH" \
+  SHELL_CONTEXT_TITLE= \
+  SHELL_CONTEXT_DEPTH=0 \
+    "$current_shell" -c '. "$1"; if [[ -z "$SHELL_CONTEXT_TITLE" ]]; then SHELL_CONTEXT_TITLE="$2"; fi; printf "%s" "$SHELL_CONTEXT_TITLE"' _ "$context_start_file" "$context_name"
+}
+
 function _shell_context_ls() {
   local OPTIND=1 opt OPTARG
   local verbose=
@@ -450,28 +466,104 @@ function _shell_context_ls() {
   done
 
   local contexts_dir="$HOME/.config/shell-context/contexts"
-  local context_start_file context_name title current_shell
-  if [[ -n "$verbose" ]]; then
-    current_shell=$(_shell_context_current_shell) || return 1
-  fi
+  local context_start_file context_name title
 
   while IFS= read -r context_start_file; do
     context_name=${context_start_file##*/}
     context_name=${context_name%.context-start}
     if [[ -n "$verbose" ]]; then
-      title=$(
-        SHELL_CONTEXT="$context_name" \
-        SHELL_CONTEXT_START_FILE="$context_start_file" \
-        SHELL_CONTEXT_PRE_PATH="$PATH" \
-        SHELL_CONTEXT_TITLE= \
-        SHELL_CONTEXT_DEPTH=0 \
-        "$current_shell" -c '. "$1"; if [[ -z "$SHELL_CONTEXT_TITLE" ]]; then SHELL_CONTEXT_TITLE="$2"; fi; printf "%s" "$SHELL_CONTEXT_TITLE"' _ "$context_start_file" "$context_name"
-      ) || return 1
+      title=$(_shell_context_context_title "$context_name" "$context_start_file") || return 1
       printf '%s\t%s\n' "$context_name" "$title"
     else
       printf '%s\n' "$context_name"
     fi
   done < <(find "$contexts_dir" -mindepth 1 -maxdepth 1 -type f -name '*.context-start' -print | LC_ALL=C sort)
+}
+
+function _shell_context_show_usage() {
+  cat <<'EOF'
+Usage: shell-context show [context_name]
+Usage: shell-context show -h
+
+Show resolved configuration details for a context, including title and
+full paths of files used for start/finalize/cleanup behavior.
+If context_name is omitted, the currently loaded context is used.
+
+Options:
+  -h  Show this usage output and exit.
+EOF
+  :
+}
+
+function _shell_context_show() {
+  local OPTIND=1 opt OPTARG
+  while getopts ":h" opt; do
+    case $opt in
+      h) _shell_context_show_usage; return 0 ;;
+      \?) echo "Invalid option: -$OPTARG" >&2; return 1 ;;
+    esac
+  done
+  shift $((OPTIND - 1))
+
+  local context_name="${1-}"
+  if [[ -n "${2-}" ]]; then
+    _shell_context_show_usage >&2
+    return 1
+  fi
+  if [[ -z "$context_name" ]]; then
+    context_name=${SHELL_CONTEXT-}
+  fi
+  if [[ -z "$context_name" ]]; then
+    echo "No context currently loaded." >&2
+    return 1
+  fi
+
+  local contexts_dir="$HOME/.config/shell-context/contexts"
+  local context_start_file="$contexts_dir/$context_name.context-start"
+  if [[ ! -f $context_start_file ]]; then
+    echo "No context-start file found for '$context_name' at $context_start_file." >&2
+    return 1
+  fi
+
+  local context_finalize_file="$contexts_dir/$context_name.context-finalize"
+  local default_finalize_file="$contexts_dir/_default.context-finalize"
+  local effective_finalize_file finalize_source
+  if [[ -f "$context_finalize_file" ]]; then
+    effective_finalize_file="$context_finalize_file"
+    finalize_source="context"
+  elif [[ -f "$default_finalize_file" ]]; then
+    effective_finalize_file="$default_finalize_file"
+    finalize_source="default"
+  else
+    effective_finalize_file="(none)"
+    finalize_source="none"
+  fi
+
+  local context_cleanup_file="$contexts_dir/$context_name.context-cleanup"
+  local default_cleanup_file="$contexts_dir/_default.context-cleanup"
+  local effective_cleanup_file cleanup_source
+  if [[ -f "$context_cleanup_file" ]]; then
+    effective_cleanup_file="$context_cleanup_file"
+    cleanup_source="context"
+  elif [[ -f "$default_cleanup_file" ]]; then
+    effective_cleanup_file="$default_cleanup_file"
+    cleanup_source="default"
+  else
+    effective_cleanup_file="(none)"
+    cleanup_source="implicit-path-restore"
+  fi
+
+  local title
+  title=$(_shell_context_context_title "$context_name" "$context_start_file") || return 1
+
+  printf 'Context name: %s\n' "$context_name"
+  printf 'Title: %s\n' "$title"
+  printf 'Start file: %s\n' "$context_start_file"
+  printf 'Finalize file: %s (source: %s)\n' "$effective_finalize_file" "$finalize_source"
+  printf 'Cleanup file: %s (source: %s)\n' "$effective_cleanup_file" "$cleanup_source"
+  if [[ "$cleanup_source" == "implicit-path-restore" ]]; then
+    printf 'Cleanup behavior: PATH will be restored from SHELL_CONTEXT_PRE_PATH when switching away from this context.\n'
+  fi
 }
 
 function _shell_context_load_usage() {
