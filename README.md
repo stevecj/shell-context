@@ -221,6 +221,8 @@ This split is intentional:
   active context's `*.context-finalize` file, which is useful for
   context-specific setup that depends on tools initialized later in the
   startup sequence
+* `init-finalize` also registers tab-completion for `shell-context` when
+  completion support is available in the current shell
 
 Optionally, before sourcing the library, export any of the following
 environment variables:
@@ -230,10 +232,16 @@ environment variables:
 * `SHELL_CONTEXT_AUTO` to a positive integer to enable automatic
   loading of the local-context when you `cd` into a directory and to
   specify the maximum depth for auto-loading.
+* `SHELL_CONTEXT_COMPLETIONS` to `0` to disable Shell Context command
+  completion registration (`1` or higher enables it; if unset, it is
+  enabled by default).
 * `SHELL_CONTEXT_PATH_SEARCH_MODE` to "physical" to have Shell
   Context search the physical path (with symlinks resolved) instead of
   the logical path when searching for `.shell-context` files. See the
   help for `shell-context load-local` for more details.
+
+For zsh, Shell Context uses zsh's `bashcompinit` compatibility layer for
+completion registration.
 
 Next, create the configuration directory:
 

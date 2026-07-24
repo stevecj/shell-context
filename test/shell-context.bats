@@ -142,6 +142,45 @@ EOF
   [[ "$output" != *"shell_context_auto_local"* ]]
 }
 
+@test "init-finalize registers bash completion for shell-context in bash" {
+  if [[ "$TEST_SHELL" != "bash" ]]; then
+    skip "bash-only completion registration test"
+  fi
+
+  run_in_test_shell \
+    'source "$1"; shell-context init-finalize; complete -p shell-context' "$SCRIPT_PATH"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"_shell_context_bash_complete"* ]]
+}
+
+@test "init-finalize skips completion registration when SHELL_CONTEXT_COMPLETIONS is zero" {
+  if [[ "$TEST_SHELL" != "bash" ]]; then
+    skip "bash-only completion registration test"
+  fi
+
+  run_in_test_shell \
+    'source "$1"; SHELL_CONTEXT_COMPLETIONS=0; shell-context init-finalize; complete -p shell-context 2>&1' "$SCRIPT_PATH"
+
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"no completion specification"* ]]
+}
+
+@test "bash completion suggests context names for load" {
+  if [[ "$TEST_SHELL" != "bash" ]]; then
+    skip "bash-only completion behavior test"
+  fi
+
+  mkdir -p "$HOME/.config/shell-context/contexts"
+  : >"$HOME/.config/shell-context/contexts/demo.context-start"
+
+  run_in_test_shell \
+    'export HOME="$1"; source "$2"; COMP_WORDS=("shell-context" "load" "de"); COMP_CWORD=2; _shell_context_bash_complete; printf "%s" "${COMPREPLY[*]}"' "$HOME" "$SCRIPT_PATH"
+
+  [ "$status" -eq 0 ]
+  [ "$output" = "demo" ]
+}
+
 @test "subcommand help is still available when Shell Context is disabled" {
   mkdir -p "$HOME/.config/shell-context"
   : >"$HOME/.config/shell-context/DISABLED"

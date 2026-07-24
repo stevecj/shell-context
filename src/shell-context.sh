@@ -141,6 +141,24 @@ function _shell_context_auto_limit() {
   return 1
 }
 
+function _shell_context_completions_enabled() {
+  if [[ -z ${SHELL_CONTEXT_COMPLETIONS+x} ]]; then
+    printf '%s\n' 1
+    return 0
+  fi
+  if [[ -z "$SHELL_CONTEXT_COMPLETIONS" ]]; then
+    return 0
+  fi
+
+  if [[ "$SHELL_CONTEXT_COMPLETIONS" =~ ^[0-9]+$ ]]; then
+    printf '%s\n' "$SHELL_CONTEXT_COMPLETIONS"
+    return 0
+  fi
+
+  echo "SHELL_CONTEXT_COMPLETIONS must be a non-negative integer, got '$SHELL_CONTEXT_COMPLETIONS'." >&2
+  return 1
+}
+
 function _shell_context_confirm() {
   local prompt=$1 reply
   printf '%s' "$prompt" >&2
@@ -300,6 +318,11 @@ Environment variables used:
     install the shell_context_auto_local prompt hook and set the maximum
     nesting depth for automatic context loading. Values 0, blank, or
     unset disable automatic hook installation.
+  SHELL_CONTEXT_COMPLETIONS
+    If set, it must be a non-negative integer. Values 1 and larger
+    register shell completion for shell-context when completion support
+    is available. Values 0 or blank disable registration. If unset,
+    completion registration is enabled by default.
 
 Environment variables assigned:
   Does not directly assign any environment variables,
@@ -309,7 +332,7 @@ EOF
 
 function _shell_context_init_finalize() {
   local OPTIND=1 opt OPTARG
-  local auto_limit
+  local auto_limit completions_enabled
   while getopts ":h" opt; do
     case $opt in
       h) _shell_context_finalize_usage; return 0 ;;
@@ -337,6 +360,11 @@ function _shell_context_init_finalize() {
       autoload -U add-zsh-hook
       add-zsh-hook precmd shell_context_auto_local
     fi
+  fi
+
+  completions_enabled=$(_shell_context_completions_enabled) || return 1
+  if [[ -n "$completions_enabled" && "$completions_enabled" -ge 1 ]]; then
+    _shell_context_register_completions
   fi
 }
 
@@ -440,6 +468,16 @@ EOF
   :
 }
 
+function _shell_context_context_names() {
+  local contexts_dir="$HOME/.config/shell-context/contexts"
+  local context_start_file
+  while IFS= read -r context_start_file; do
+    context_start_file=${context_start_file##*/}
+    context_start_file=${context_start_file%.context-start}
+    printf '%s\n' "$context_start_file"
+  done < <(find "$contexts_dir" -mindepth 1 -maxdepth 1 -type f -name '*.context-start' -print | LC_ALL=C sort)
+}
+
 function _shell_context_context_title() {
   local context_name=$1
   local context_start_file=$2
@@ -454,6 +492,84 @@ function _shell_context_context_title() {
     "$current_shell" -c '{ . "$1"; } >/dev/null 2>&1 || exit $?; if [[ -z "$SHELL_CONTEXT_TITLE" ]]; then SHELL_CONTEXT_TITLE="$2"; fi; printf "%s" "$SHELL_CONTEXT_TITLE"' _ "$context_start_file" "$context_name"
 }
 
+function _shell_context_completion_subcommands() {
+  printf '%s\n' \
+    "init-start" \
+    "init-finalize" \
+    "prompt-title" \
+    "ls" \
+    "show" \
+    "load" \
+    "unload" \
+    "load-local" \
+    "auto-local" \
+    "run" \
+    "version"
+}
+
+function _shell_context_bash_complete() {
+  local cur subcommand
+  cur=${COMP_WORDS[COMP_CWORD]}
+  subcommand=${COMP_WORDS[1]-}
+
+  COMPREPLY=()
+  if [[ $COMP_CWORD -eq 1 ]]; then
+    COMPREPLY=($(compgen -W "$(_shell_context_completion_subcommands) -h -v --help --version" -- "$cur"))
+    return 0
+  fi
+
+  case "$subcommand" in
+    load)
+      if [[ $COMP_CWORD -eq 2 ]]; then
+        COMPREPLY=($(compgen -W "$(_shell_context_context_names)" -- "$cur"))
+      fi
+      ;;
+    run)
+      if [[ $COMP_CWORD -eq 2 ]]; then
+        COMPREPLY=($(compgen -W "$(_shell_context_context_names)" -- "$cur"))
+      elif [[ $COMP_CWORD -eq 3 ]]; then
+        COMPREPLY=($(compgen -W "--" -- "$cur"))
+      fi
+      ;;
+    show)
+      if [[ $COMP_CWORD -eq 2 ]]; then
+        COMPREPLY=($(compgen -W "$(_shell_context_context_names)" -- "$cur"))
+      fi
+      ;;
+    unload)
+      COMPREPLY=($(compgen -W "-q -y -h" -- "$cur"))
+      ;;
+    load-local)
+      COMPREPLY=($(compgen -W "-l -p -q -y -h" -- "$cur"))
+      ;;
+    ls)
+      COMPREPLY=($(compgen -W "-v -h" -- "$cur"))
+      ;;
+    init-start|init-finalize|auto-local|version)
+      COMPREPLY=($(compgen -W "-h" -- "$cur"))
+      ;;
+  esac
+}
+
+function _shell_context_register_completions() {
+  local current_shell
+  current_shell=$(_shell_context_current_shell) || return 1
+
+  if [[ $current_shell == "bash" ]]; then
+    if command -v complete >/dev/null 2>&1; then
+      complete -o bashdefault -o default -F _shell_context_bash_complete shell-context >/dev/null 2>&1 || true
+    fi
+  elif [[ $current_shell == "zsh" ]]; then
+    if ! command -v complete >/dev/null 2>&1; then
+      autoload -U bashcompinit >/dev/null 2>&1 || return 0
+      bashcompinit >/dev/null 2>&1 || return 0
+    fi
+    if command -v complete >/dev/null 2>&1; then
+      complete -o bashdefault -o default -F _shell_context_bash_complete shell-context >/dev/null 2>&1 || true
+    fi
+  fi
+}
+
 function _shell_context_ls() {
   local OPTIND=1 opt OPTARG
   local verbose=
@@ -466,18 +582,16 @@ function _shell_context_ls() {
   done
 
   local contexts_dir="$HOME/.config/shell-context/contexts"
-  local context_start_file context_name title
-
-  while IFS= read -r context_start_file; do
-    context_name=${context_start_file##*/}
-    context_name=${context_name%.context-start}
+  local context_name context_start_file title
+  while IFS= read -r context_name; do
+    context_start_file="$contexts_dir/$context_name.context-start"
     if [[ -n "$verbose" ]]; then
       title=$(_shell_context_context_title "$context_name" "$context_start_file") || return 1
       printf '%s\t%s\n' "$context_name" "$title"
     else
       printf '%s\n' "$context_name"
     fi
-  done < <(find "$contexts_dir" -mindepth 1 -maxdepth 1 -type f -name '*.context-start' -print | LC_ALL=C sort)
+  done < <(_shell_context_context_names)
 }
 
 function _shell_context_show_usage() {
