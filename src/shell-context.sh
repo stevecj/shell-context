@@ -510,15 +510,19 @@ function _shell_context_show() {
     _shell_context_show_usage >&2
     return 1
   fi
+
+  local contexts_dir="$HOME/.config/shell-context/contexts"
   if [[ -z "$context_name" ]]; then
     context_name=${SHELL_CONTEXT-}
+  fi
+  if [[ -z "$context_name" && "${SHELL_CONTEXT_START_FILE-}" == "$contexts_dir/_default.context-start" ]]; then
+    context_name="_default"
   fi
   if [[ -z "$context_name" ]]; then
     echo "No context currently loaded." >&2
     return 1
   fi
 
-  local contexts_dir="$HOME/.config/shell-context/contexts"
   local context_start_file="$contexts_dir/$context_name.context-start"
   if [[ ! -f $context_start_file ]]; then
     echo "No context-start file found for '$context_name' at $context_start_file." >&2

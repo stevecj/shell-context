@@ -224,6 +224,19 @@ EOF
   [[ "$output" == *"Title: Alpha Title"* ]]
 }
 
+@test "show defaults to _default when default context is active" {
+  mkdir -p "$HOME/.config/shell-context/contexts"
+  printf 'export SHELL_CONTEXT_TITLE="Default Title"\n' >"$HOME/.config/shell-context/contexts/_default.context-start"
+
+  run_in_test_shell \
+    'export HOME="$1"; unset SHELL_CONTEXT SHELL_CONTEXT_START_FILE SHELL_CONTEXT_FINALIZE_FILE; source "$2"; shell-context init-start; shell-context show' "$HOME" "$SCRIPT_PATH"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Context name: _default"* ]]
+  [[ "$output" == *"Title: Default Title"* ]]
+  [[ "$output" == *"Start file: $HOME/.config/shell-context/contexts/_default.context-start"* ]]
+}
+
 @test "show without an argument fails when no context is currently loaded" {
   run_in_test_shell \
     'export HOME="$1"; unset SHELL_CONTEXT; source "$2"; shell-context show 2>&1' "$HOME" "$SCRIPT_PATH"
