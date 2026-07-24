@@ -323,13 +323,8 @@ Steve Jorgensen - stevej@stevej.name
 Project Link: (none yet)
 
 ## Version History
-* 1.0.0
-    * Initial release.
-* 1.0.1
-    * Improved documentation.
-* 1.0.2
-    * Improved documentation.
-    * Improved help output from functions.
+
+See [RELEASE_HISTORY.md](./RELEASE_HISTORY.md) for release notes.
 
 ## License
 
