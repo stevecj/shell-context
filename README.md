@@ -82,6 +82,18 @@ command. At any time, you can run `shell-context -h` for a list of
 available commands or `shell-context <command> -h` for details on a
 specific command.
 
+List available contexts with:
+
+```bash
+shell-context ls
+```
+
+Use `-v` to include each context's title as a second column:
+
+```bash
+shell-context ls -v
+```
+
 If there is cleanup that needs to be performed when switching from one
 context to another, create a `*.context-cleanup` file for that context.
 If no cleanup file is defined for a context, then `PATH` will be

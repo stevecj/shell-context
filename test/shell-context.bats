@@ -51,6 +51,7 @@ EOF
   [ "$status" -eq 0 ]
   [[ "$output" == *"Usage: shell-context <subcommand> [arguments]"* ]]
   [[ "$output" == *"Subcommands:"* ]]
+  [[ "$output" == *"ls              List available contexts."* ]]
   [[ "$output" == *"Run \`shell-context <subcommand> -h\` for subcommand-specific help."* ]]
 }
 
@@ -149,6 +150,30 @@ EOF
 
   [ "$status" -eq 0 ]
   [[ "$output" == *"Usage: shell-context load <context_name>"* ]]
+}
+
+@test "ls subcommand lists available context names" {
+  mkdir -p "$HOME/.config/shell-context/contexts"
+  : >"$HOME/.config/shell-context/contexts/alpha.context-start"
+  : >"$HOME/.config/shell-context/contexts/zulu.context-start"
+
+  run_in_test_shell \
+    'export HOME="$1"; source "$2"; shell-context ls' "$HOME" "$SCRIPT_PATH"
+
+  [ "$status" -eq 0 ]
+  [ "$output" = $'alpha\nzulu' ]
+}
+
+@test "ls -v includes context titles as the second column" {
+  mkdir -p "$HOME/.config/shell-context/contexts"
+  printf 'export SHELL_CONTEXT_TITLE="Alpha Title"\n' >"$HOME/.config/shell-context/contexts/alpha.context-start"
+  : >"$HOME/.config/shell-context/contexts/zulu.context-start"
+
+  run_in_test_shell \
+    'export HOME="$1"; source "$2"; shell-context ls -v' "$HOME" "$SCRIPT_PATH"
+
+  [ "$status" -eq 0 ]
+  [ "$output" = $'alpha\tAlpha Title\nzulu\tzulu' ]
 }
 
 @test "non-help subcommands fail when Shell Context is disabled" {

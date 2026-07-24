@@ -18,6 +18,7 @@ Subcommands:
   init-start      Initialize the Shell Context system.
   init-finalize   Finalize Shell Context initialization.
   prompt-title    Output the prompt title for the current context.
+  ls              List available contexts.
   load            Enter a named context.
   unload          Exit the current context shell.
   load-local      Load  context named in nearest .shell-context file.
@@ -69,6 +70,7 @@ function shell-context() {
     init-start)    _shell_context_init_start "$@" ;;
     init-finalize) _shell_context_init_finalize "$@" ;;
     prompt-title)  _shell_context_prompt_title "$@" ;;
+    ls)            _shell_context_ls "$@" ;;
     load)          _shell_context_load "$@" ;;
     unload)        _shell_context_unload "$@" ;;
     load-local)    _shell_context_load_local "$@" ;;
@@ -419,6 +421,57 @@ function _shell_context_prompt_title() {
 
   # shellcheck disable=SC2059
   printf "$template" "$value"
+}
+
+function _shell_context_ls_usage() {
+  cat <<'EOF'
+Usage: shell-context ls [-v]
+Usage: shell-context ls -h
+
+List available contexts (stems of *.context-start files in
+~/.config/shell-context/contexts).
+
+Options:
+  -v  Verbose output. Include context title as a second column.
+  -h  Show this usage output and exit.
+EOF
+  :
+}
+
+function _shell_context_ls() {
+  local OPTIND=1 opt OPTARG
+  local verbose=
+  while getopts ":vh" opt; do
+    case $opt in
+      v) verbose=1 ;;
+      h) _shell_context_ls_usage; return 0 ;;
+      \?) echo "Invalid option: -$OPTARG" >&2; return 1 ;;
+    esac
+  done
+
+  local contexts_dir="$HOME/.config/shell-context/contexts"
+  local context_start_file context_name title current_shell
+  if [[ -n "$verbose" ]]; then
+    current_shell=$(_shell_context_current_shell) || return 1
+  fi
+
+  while IFS= read -r context_start_file; do
+    context_name=${context_start_file##*/}
+    context_name=${context_name%.context-start}
+    if [[ -n "$verbose" ]]; then
+      title=$(
+        SHELL_CONTEXT="$context_name" \
+        SHELL_CONTEXT_START_FILE="$context_start_file" \
+        SHELL_CONTEXT_PRE_PATH="$PATH" \
+        SHELL_CONTEXT_TITLE= \
+        SHELL_CONTEXT_DEPTH=0 \
+        "$current_shell" -c '. "$1"; if [[ -z "$SHELL_CONTEXT_TITLE" ]]; then SHELL_CONTEXT_TITLE="$2"; fi; printf "%s" "$SHELL_CONTEXT_TITLE"' _ "$context_start_file" "$context_name"
+      ) || return 1
+      printf '%s\t%s\n' "$context_name" "$title"
+    else
+      printf '%s\n' "$context_name"
+    fi
+  done < <(find "$contexts_dir" -mindepth 1 -maxdepth 1 -type f -name '*.context-start' -print | LC_ALL=C sort)
 }
 
 function _shell_context_load_usage() {
