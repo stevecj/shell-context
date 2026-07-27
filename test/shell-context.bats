@@ -407,6 +407,22 @@ EOF
   [ "$(cat "$cleanup_marker")" = "default-cleanup" ]
 }
 
+@test "load runs the default context cleanup when entering a named context from the default context" {
+  install_fake_shell
+  mkdir -p "$HOME/.config/shell-context/contexts"
+  printf 'printf default-cleanup >"$CLEANUP_MARKER"\n' >"$HOME/.config/shell-context/contexts/_default.context-cleanup"
+  printf 'export TEST_FLAG=next-loaded\n' >"$HOME/.config/shell-context/contexts/next.context-start"
+  local cleanup_marker="$BATS_TEST_TMPDIR/default-cleanup-from-default.marker"
+
+  run_in_test_shell \
+    'export HOME="$1"; export PATH="$3:$PATH"; export CLEANUP_MARKER="$4"; export FAKE_SHELL_INIT_START_SCRIPT="$2"; export SHELL_CONTEXT_START_FILE="$HOME/.config/shell-context/contexts/_default.context-start"; export SHELL_CONTEXT_DEPTH=1; source "$2"; shell-context load next 2>&1' "$HOME" "$SCRIPT_PATH" "$FAKE_BIN" "$cleanup_marker"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Entering context 'next'..."* ]]
+  [[ "$output" == *"PREVIOUS=_default"* ]]
+  [ "$(cat "$cleanup_marker")" = "default-cleanup" ]
+}
+
 @test "load-local reports when no local context exists" {
   mkdir -p "$BATS_TEST_TMPDIR/work"
 

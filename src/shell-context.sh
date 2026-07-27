@@ -785,6 +785,8 @@ function _shell_context_load() {
   local previous_context_name=
   if [[ -n "$SHELL_CONTEXT" ]]; then
     previous_context_name=$SHELL_CONTEXT
+  elif [[ "${SHELL_CONTEXT_START_FILE-}" == "$HOME/.config/shell-context/contexts/_default.context-start" ]]; then
+    previous_context_name="_default"
   fi
 
   echo "Entering context '$context_name'..."
