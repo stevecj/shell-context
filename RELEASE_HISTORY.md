@@ -1,5 +1,10 @@
 # Release History
 
+## 1.0.4 (2026-07-27)
+
+- Fixed a bug where `_default.context-cleanup` was not run when loading
+  a named context from the default context.
+
 ## 1.0.3 (2026-07-23)
 
 - Added `run` subcommand to execute a command in a named context without
